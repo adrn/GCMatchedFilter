@@ -15,10 +15,10 @@ import astropy.units as u
 import numpy as np
 
 # Project
-from globmfer.dust import getval
+from globber.dust import getval
 
 # HACK: needed for Branimir's SFD code
-os.environ['DUST_DIR'] = "/Users/adrian/projects/globmfer/data/dust"
+os.environ['DUST_DIR'] = "/Users/adrian/projects/globber/data/dust"
 
 def main(input_file):
 
