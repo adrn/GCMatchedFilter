@@ -51,6 +51,18 @@ def main(input_file):
     ps1_arr = ps1.as_array()
     np.save(output_file, ps1_arr)
 
+    """ Note: to use Eddie Schlafly's dust map instead:
+
+    # load Eddie's dust map
+    dustmap = getdata(os.path.join(data_path,"ps1-ebv-4.5kpc.fits"))
+
+    # convert RA and Dec into galactic coordinates
+    ps1_g = ps1_c.transform_to(coord.Galactic)
+    EBV = hp.get_interp_val(dustmap['ebv'],
+                            (90.*u.deg-ps1_g.b).to(u.radian).value,
+                            ps1_g.l.to(u.radian).value)
+    """
+
 if __name__ == "__main__":
     from argparse import ArgumentParser
     import logging
