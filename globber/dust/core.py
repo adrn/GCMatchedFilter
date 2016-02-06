@@ -15,6 +15,9 @@ from scipy.ndimage import map_coordinates
 
 __all__ = ['get_sfd_ebv']
 
+# TODO: this is currently borked. maybe i should have a dust
+#       package on github that uses git-lfs...
+
 def get_sfd_ebv(coordinate, order=1):
     """
     Return SFD extinction at the input coordinate(s).
