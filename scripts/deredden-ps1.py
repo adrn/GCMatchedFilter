@@ -15,10 +15,7 @@ import astropy.units as u
 import numpy as np
 
 # Project
-from globber.dust import getval
-
-# HACK: needed for Branimir's SFD code
-os.environ['DUST_DIR'] = "/Users/adrian/projects/globber/data/dust"
+import sfd # install from: https://github.com/adrn/sfd
 
 def main(input_file):
 
@@ -36,32 +33,14 @@ def main(input_file):
 
     # make an astropy coordinates object for the stars
     ps1_c = coord.ICRS(ra=ps1['ra']*u.degree, dec=ps1['dec']*u.degree)
-    ps1_g = ps1_c.transform_to(coord.Galactic)
-
-    # get SFD extinction E(B-V) for all PS1 catalog positions
-    SFD_EBV = getval(ps1_g.l.wrap_at(180*u.degree).degree, ps1_g.b.degree)
-
-    # HACK: a correction based on Branimir's fit to the NGC 5897 data
-    SFD_EBV = SFD_EBV - 0.0033 # Brani's correction
+    reddening = reddening(c, survey='PS1', filters='grizy')
 
     # deredden the photometry and save as new columns
-    for band, c in zip('grizy', [3.172, 2.271, 1.682, 1.322, 1.087]):
-        ps1["dered_{}".format(band)] = ps1[band] - c*SFD_EBV
+    for i, band in enumerate('grizy'):
+        ps1["dered_{}".format(band)] = ps1[band] - reddening[:,i]
 
     ps1_arr = ps1.as_array()
     np.save(output_file, ps1_arr)
-
-    """ Note: to use Eddie Schlafly's dust map instead:
-
-    # load Eddie's dust map
-    dustmap = getdata(os.path.join(data_path,"ps1-ebv-4.5kpc.fits"))
-
-    # convert RA and Dec into galactic coordinates
-    ps1_g = ps1_c.transform_to(coord.Galactic)
-    EBV = hp.get_interp_val(dustmap['ebv'],
-                            (90.*u.deg-ps1_g.b).to(u.radian).value,
-                            ps1_g.l.to(u.radian).value)
-    """
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
