@@ -86,7 +86,7 @@ def main(ps1_file, g_lim):
     n_iter = 512
 
     xd_clf = XDGMM(n_clusters, n_iter=n_iter, tol=1E-4, verbose=True)
-    xd_clf.fit(X[::50], Xcov[::50])
+    xd_clf.fit(X[::100], Xcov[::100])
 
     # pickle this thing! xd_clf
     with open("xd_control_clf.pickle", "wb") as f:
