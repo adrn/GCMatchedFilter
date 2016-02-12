@@ -26,9 +26,9 @@ DM = 15.62 # Brani's fit
 cluster_c = coord.SkyCoord(ra=229.352*u.degree,
                            dec=-21.01*u.degree) # cluster sky position
 color_lim = {
-    'g-r': (0,0.5),
-    'g-i': (0,0.75),
-    'g-z': (0,0.8),
+    'g-r': (0,0.7),
+    'g-i': (0,0.9),
+    'g-z': (0,0.85),
 }
 
 def cut_func(d, g_lim):
@@ -82,11 +82,11 @@ def main(ps1_file, g_lim):
     # feature and covariance matrices
     X,Xcov = data_to_X_cov(cut_ps1)
 
-    n_clusters = 32
-    n_iter = 100
+    n_clusters = 8
+    n_iter = 512
 
     xd_clf = XDGMM(n_clusters, n_iter=n_iter, tol=1E-4, verbose=True)
-    xd_clf.fit(X[::10], Xcov[::10])
+    xd_clf.fit(X[::50], Xcov[::50])
 
     # pickle this thing! xd_clf
     with open("xd_control_clf.pickle", "wb") as f:
