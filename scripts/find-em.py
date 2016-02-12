@@ -91,7 +91,7 @@ def callback(result):
     fp[result['offset']:result['offset']+result['n']] = result['ll']
     fp.flush()
 
-def main(ps1_catalog_file, n_per_chunk, mpi=False):
+def main(ps1_catalog_file, index, n_per_chunk, mpi=False):
     lims = {
         'g': (17.,20.2),
         'g-r': (0,0.7),
@@ -173,13 +173,15 @@ def main(ps1_catalog_file, n_per_chunk, mpi=False):
     if (len(tasks) * n_per_chunk) < len(ps1):
         tasks += [[filenames, metadata, n_per_chunk, (i+1)*n_per_chunk]]
 
-    logger.debug("{} tasks".format(len(tasks)))
-    pool.map(worker, tasks[:4], callback=callback) # HACK: slice
-    pool.close()
+    result = worker(tasks[index])
+    callback(result)
 
-    fp = np.memmap(filenames['output'], dtype='float64',
-                   shape=metadata['output']['shape'], mode='r')
-    print(fp[:50])
+    # logger.debug("{} tasks".format(len(tasks)))
+    # # pool.map(worker, tasks, callback=callback) # HACK: slice
+    # # pool.close()
+
+    # fp = np.memmap(filenames['output'], dtype='float64',
+    #                shape=metadata['output']['shape'], mode='r')
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
@@ -198,6 +200,8 @@ if __name__ == "__main__":
                         help="Run in test/development mode.")
     parser.add_argument("-n", "--nperchunk", dest="n_per_chunk", default=1000,
                         type=int, help="Number of stars per chunk.")
+    parser.add_argument("-i", "--index", dest="index", required=True,
+                        type=int, help="Index of the chunk to process.")
     parser.add_argument("--mpi", dest="mpi", action="store_true", default=False,
                         help="Run with MPI.")
 
@@ -211,4 +215,4 @@ if __name__ == "__main__":
     else:
         logger.setLevel(logging.INFO)
 
-    main(ps1_catalog_file=args.filename, n_per_chunk=args.n_per_chunk, mpi=args.mpi)
+    main(ps1_catalog_file=args.filename, index=args.index, n_per_chunk=args.n_per_chunk, mpi=args.mpi)
