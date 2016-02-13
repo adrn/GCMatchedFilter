@@ -6,6 +6,7 @@ __author__ = "adrn <adrn@astro.columbia.edu>"
 
 # Standard library
 import os
+import sys
 
 # Third-party
 import astropy.coordinates as coord
@@ -14,7 +15,8 @@ import astropy.units as u
 from astroML.utils import log_multivariate_gaussian
 import numpy as np
 from scipy.misc import logsumexp
-from gary.util import get_pool
+import filelock
+import h5py
 
 # Global configuration stuff
 cluster_c = coord.SkyCoord(ra=229.352*u.degree,
@@ -57,77 +59,51 @@ def data_to_X_cov(data):
 
     return X, Xcov
 
-def worker(task):
-    filenames, metadata, n, offset = task
-
-    clusterX = np.memmap(filenames['cluster']['X'], mode='r',
-                         dtype='float64', shape=metadata['cluster']['X']['shape'])
-    clusterCov = np.memmap(filenames['cluster']['Cov'], mode='r',
-                           dtype='float64', shape=metadata['cluster']['Cov']['shape'])
-
-    allX = np.memmap(filenames['all']['X'], mode='r',
-                     dtype='float64', shape=metadata['all']['X']['shape'])
-    allCov = np.memmap(filenames['all']['Cov'], mode='r',
-                       dtype='float64', shape=metadata['all']['Cov']['shape'])
-    allX = allX[offset:offset+n]
-    allCov = allCov[offset:offset+n]
-
+def worker(allX, allCov, clusterX, clusterCov):
     V = allCov[:,np.newaxis,:,:] + clusterCov
     ll = log_multivariate_gaussian(allX[:,np.newaxis,:], clusterX, V)
     ll = logsumexp(ll, axis=-1) # NOTE: could also max here
+    return ll
 
-    result = dict()
-    result['ll'] = ll
-    result['n'] = n
-    result['offset'] = offset
-    result['output_filename'] = filenames['output']
-    result['output_metadata'] = metadata['output']
-
-    return result
-
-def callback(result):
-    fp = np.memmap(result['output_filename'], dtype='float64',
-                   shape=result['output_metadata']['shape'], mode='r+')
-    fp[result['offset']:result['offset']+result['n']] = result['ll']
-    fp.flush()
-
-def main(ps1_catalog_file, index, n_per_chunk, mpi=False):
-    lims = {
-        'g': (17.,20.2),
-        'g-r': (0,0.7),
-        'g-i': (0,0.9),
-        'g-z': (0,0.85),
-    }
+def initialize(ps1_catalog_file, overwrite=False):
     cluster_pad = {
         'inner': 0.08*u.degree,
         'outer': 0.2*u.degree
     }
 
-    # MPI or serial pool
-    pool = get_pool(mpi=mpi)
-
     ps1_catalog_file = os.path.abspath(ps1_catalog_file)
     basepath = os.path.split(ps1_catalog_file)[0]
-    output_filename = os.path.join(basepath, "results.mmap")
+
+    # save files
+    XCov_filename = os.path.join(basepath, "XCov.h5")
+    results_filename = os.path.join(basepath, "results.h5")
 
     # Load PS1 photometry
     ps1 = np.load(ps1_catalog_file)
     ps1 = ps1[np.isfinite(ps1['dered_g']) & np.isfinite(ps1['dered_r']) &
               np.isfinite(ps1['dered_i']) & np.isfinite(ps1['dered_z'])]
 
-    # Save feature and covariance matrices
+    if os.path.exists(XCov_filename) and overwrite:
+        logger.debug("Clobbering existing file: {}".format(XCov_filename))
+        os.remove(XCov_filename)
+
+    if os.path.exists(results_filename) and overwrite:
+        os.remove(results_filename)
+
+    if os.path.exists(XCov_filename) and os.path.exists(results_filename):
+        logger.debug("Files already exist: {}, {}".format(XCov_filename, results_filename))
+        return XCov_filename, results_filename
+
+    # output hdf5 file
+    f = h5py.File(XCov_filename, mode='w')
+
+    # feature and covariance matrices for all stars
     allX, allCov = data_to_X_cov(ps1)
-    all_X_filename = os.path.join(basepath, "allX.mmap")
-    all_Cov_filename = os.path.join(basepath, "allCov.mmap")
-
-    if not os.path.exists(all_X_filename) or not os.path.exists(all_Cov_filename):
-        X_fp = np.memmap(all_X_filename, dtype=allX.dtype, mode='w+', shape=allX.shape)
-        X_fp[:,:] = allX
-
-        Cov_fp = np.memmap(all_Cov_filename, dtype=allCov.dtype, mode='w+', shape=allCov.shape)
-        Cov_fp[:,:] = allCov
-
-        logger.debug("Saved {}".format(all_X_filename))
+    g = f.create_group('all')
+    dsetX = g.create_dataset('X', allX.shape, dtype='f')
+    dsetCov = g.create_dataset('Cov', allCov.shape, dtype='f')
+    dsetX[...] = allX
+    dsetCov[...] = allCov
 
     # define coordinates object for all stars
     ps1_c = coord.ICRS(ra=ps1['ra']*u.degree, dec=ps1['dec']*u.degree)
@@ -137,51 +113,61 @@ def main(ps1_catalog_file, index, n_per_chunk, mpi=False):
     cluster = ps1[cluster_idx]
 
     clusterX, clusterCov = data_to_X_cov(cluster)
-    cluster_X_filename = os.path.join(basepath, "clusterX.mmap")
-    cluster_Cov_filename = os.path.join(basepath, "clusterCov.mmap")
+    g = f.create_group('cluster')
+    dsetX = g.create_dataset('X', clusterX.shape, dtype='f')
+    dsetCov = g.create_dataset('Cov', clusterCov.shape, dtype='f')
+    dsetX[...] = clusterX
+    dsetCov[...] = clusterCov
 
-    if not os.path.exists(cluster_X_filename) or not os.path.exists(cluster_Cov_filename):
-        X_fp = np.memmap(cluster_X_filename, dtype=clusterX.dtype, mode='w+', shape=clusterX.shape)
-        X_fp[:,:] = clusterX
+    logger.debug("Saved {}".format(XCov_filename))
 
-        Cov_fp = np.memmap(cluster_Cov_filename, dtype=clusterCov.dtype, mode='w+', shape=clusterCov.shape)
-        Cov_fp[:,:] = clusterCov
+    f.close()
 
-        logger.debug("Saved {}".format(cluster_X_filename))
+    with h5py.File(results_filename, mode='w') as f:
+        dset = f.create_dataset('cluster_log_likelihood', (allX.shape[0],), dtype='f')
+        dset[:] = np.ones(allX.shape[0]) + np.nan
 
-    logger.info("{} total stars, {} cluster stars".format(len(ps1), len(clusterX)))
+    return XCov_filename, results_filename
 
-    # for MPI
-    tasks = list()
+def main(XCov_filename, results_filename, chunk_index, n_per_chunk):
+    if chunk_index is None:
+        raise ValueError("-i, --chunk-index is required")
 
-    filenames = dict(all=dict(), cluster=dict())
-    filenames['all']['X'] = all_X_filename
-    filenames['all']['Cov'] = all_Cov_filename
-    filenames['cluster']['X'] = cluster_X_filename
-    filenames['cluster']['Cov'] = cluster_Cov_filename
-    filenames['output'] = output_filename
+    slc = slice(chunk_index*n_per_chunk, (chunk_index+1)*n_per_chunk)
+    with h5py.File(results_filename, mode='r') as results_f:
+        ll = results_f['cluster_log_likelihood'][slc]
+        if np.isfinite(ll).all():
+            logger.debug("All log-likelihoods already computed for Chunk {} ({}:{})"
+                         .format(chunk_index,slc.start,slc.stop))
+            return
 
-    metadata = dict(all=dict(X=dict(),Cov=dict()), cluster=dict(X=dict(),Cov=dict()), output=dict())
-    metadata['all']['X']['shape'] = allX.shape
-    metadata['all']['Cov']['shape'] = allCov.shape
-    metadata['cluster']['X']['shape'] = clusterX.shape
-    metadata['cluster']['Cov']['shape'] = clusterCov.shape
-    metadata['output']['shape'] = (allX.shape[0],)
+    logger.debug("Computing likelihood for Chunk {} ({}:{})".format(chunk_index,slc.start,slc.stop))
+    with h5py.File(XCov_filename, mode='r') as f:
+        logger.debug("{} total stars, {} cluster stars".format(f['all']['X'].shape[0],
+                                                               f['cluster']['X'].shape[0]))
+        X = f['all']['X'][slc]
+        Cov = f['all']['Cov'][slc]
+        ll = worker(X, Cov, f['cluster']['X'], f['cluster']['Cov'])
+        logger.debug("Log-likelihoods computed")
 
-    for i in range(len(ps1) // n_per_chunk):
-        tasks.append([filenames, metadata, n_per_chunk, i*n_per_chunk])
-    if (len(tasks) * n_per_chunk) < len(ps1):
-        tasks += [[filenames, metadata, n_per_chunk, (i+1)*n_per_chunk]]
+        lock = filelock.FileLock("results.lock")
+        try:
+            with lock.acquire(timeout=90):
+                logger.debug("File lock acquired - writing to results")
+                with h5py.File(results_filename, mode='r+') as results_f:
+                    results_f['cluster_log_likelihood'][slc] = ll
+                    results_f.flush()
 
-    result = worker(tasks[index])
-    callback(result)
+        except filelock.Timeout:
+            logger.error("Timed out trying to acquire file lock.")
+            sys.exit(1)
 
-    # logger.debug("{} tasks".format(len(tasks)))
-    # # pool.map(worker, tasks, callback=callback) # HACK: slice
-    # # pool.close()
-
-    # fp = np.memmap(filenames['output'], dtype='float64',
-    #                shape=metadata['output']['shape'], mode='r')
+def status(results_filename):
+    with h5py.File(results_filename, mode='r') as results_f:
+        ll = results_f['cluster_log_likelihood'][:]
+        ndone = np.isfinite(ll).sum()
+        nnot = np.isnan(ll).sum()
+        logger.info("{} done, {} not done".format(ndone, nnot))
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
@@ -193,14 +179,19 @@ if __name__ == "__main__":
                         default=False, help="Be chatty! (default = False)")
     parser.add_argument("-q", "--quiet", action="store_true", dest="quiet",
                         default=False, help="Be quiet! (default = False)")
+    parser.add_argument("-o", "--overwrite", action="store_true", dest="overwrite",
+                        default=False, help="DESTROY.")
+
+    parser.add_argument("--initialize", dest="initialize", action="store_true", default=False,
+                        help="Create HDF5 file with X and Cov.")
+    parser.add_argument("--status", dest="status", action="store_true", default=False,
+                        help="Check status of results file.")
 
     parser.add_argument("-f", dest="filename", default=None, required=True,
                         type=str, help="Path to PS1 catalog file (a .npy file)")
-    parser.add_argument("-t", "--test", dest="test", action="store_true", default=False,
-                        help="Run in test/development mode.")
     parser.add_argument("-n", "--nperchunk", dest="n_per_chunk", default=1000,
                         type=int, help="Number of stars per chunk.")
-    parser.add_argument("-i", "--index", dest="index", required=True,
+    parser.add_argument("-i", "--chunk-index", dest="index", default=None,
                         type=int, help="Index of the chunk to process.")
     parser.add_argument("--mpi", dest="mpi", action="store_true", default=False,
                         help="Run with MPI.")
@@ -215,4 +206,12 @@ if __name__ == "__main__":
     else:
         logger.setLevel(logging.INFO)
 
-    main(ps1_catalog_file=args.filename, index=args.index, n_per_chunk=args.n_per_chunk, mpi=args.mpi)
+    XCov_filename, results_filename = initialize(args.filename, overwrite=args.overwrite)
+
+    if args.status:
+        status(results_filename)
+        sys.exit(0)
+
+    if not args.initialize:
+        main(XCov_filename, results_filename,
+             chunk_index=args.index, n_per_chunk=args.n_per_chunk)
