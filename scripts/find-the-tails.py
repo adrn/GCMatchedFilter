@@ -134,6 +134,7 @@ def main(XCov_filename, results_filename, chunk_index, n_per_chunk):
         raise ValueError("-i, --chunk-index is required")
 
     slc = slice(chunk_index*n_per_chunk, (chunk_index+1)*n_per_chunk)
+    some_unfinished = False
     with h5py.File(results_filename, mode='r') as results_f:
         ll = results_f['cluster_log_likelihood'][slc]
         if np.isfinite(ll).all():
@@ -141,12 +142,21 @@ def main(XCov_filename, results_filename, chunk_index, n_per_chunk):
                          .format(chunk_index,slc.start,slc.stop))
             return
 
+        if np.isnan(ll).any():
+            some_unfinished = True
+            unfinished_idx = np.isnan(ll)
+            logger.debug("Some log-likelihoods already computed -- will fill unfinished values.")
+
     logger.debug("Computing likelihood for Chunk {} ({}:{})".format(chunk_index,slc.start,slc.stop))
     with h5py.File(XCov_filename, mode='r') as f:
         logger.debug("{} total stars, {} cluster stars".format(f['all']['X'].shape[0],
                                                                f['cluster']['X'].shape[0]))
         X = f['all']['X'][slc]
         Cov = f['all']['Cov'][slc]
+        if some_unfinished:
+            X = X[unfinished_idx]
+            Cov = Cov[unfinished_idx]
+
         ll = worker(X, Cov, f['cluster']['X'], f['cluster']['Cov'])
         logger.debug("Log-likelihoods computed")
 
@@ -168,6 +178,23 @@ def status(results_filename):
         ndone = np.isfinite(ll).sum()
         nnot = np.isnan(ll).sum()
         logger.info("{} done, {} not done".format(ndone, nnot))
+
+        # check what blocks are unfinished
+        if nnot != 0:
+            idx, = np.where(np.isnan(ll))
+            diff = idx[1:]-idx[:-1]
+            derp, = np.where(diff > 1)
+            if 0 not in derp:
+                derp = np.concatenate(([0], derp, [len(idx)-1]))
+
+            logger.debug("Unfinished blocks:")
+            blocks = []
+            for d1,d2 in zip(derp[:-1],derp[1:]):
+                if d1 == 0:
+                    blocks.append("{}-{}".format(idx[d1], idx[d2]))
+                else:
+                    blocks.append("{}-{}".format(idx[d1+1], idx[d2]))
+            logger.debug(", ".join(blocks))
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
