@@ -22,23 +22,6 @@ import h5py
 cluster_c = coord.SkyCoord(ra=229.352*u.degree,
                            dec=-21.01*u.degree)
 
-def color_cut(d, lims):
-    g = d['dered_g']
-    gr = g-d['dered_r']
-    gi = g-d['dered_i']
-    gz = g-d['dered_z']
-
-    ix = ((g > lims['g'][0]) & (g < lims['g'][1]) &
-          (gr > lims['g-r'][0]) & (gr < lims['g-r'][1]) &
-          (gi > lims['g-i'][0]) & (gi < lims['g-i'][1]) &
-          (gz > lims['g-z'][0]) & (gz < lims['g-z'][1]))
-    return d[ix]
-
-def sky_cut(data, lims):
-    idx = ((data['ra'] > lims['ra'][0]) & (data['ra'] < lims['ra'][1]) &
-           (data['dec'] > lims['dec'][0]) & (data['dec'] < lims['dec'][1]))
-    return data[idx]
-
 def data_to_X_cov(data):
     X = np.vstack([data['dered_{}'.format(band)] for band in 'griz']).T
     Xerr = np.vstack([data['{}Err'.format(band)] for band in 'griz']).T
