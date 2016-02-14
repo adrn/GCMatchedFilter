@@ -51,15 +51,19 @@ def main(XCov_filename, results_filename, ps1_filename):
               np.isfinite(ps1['dered_i']) & np.isfinite(ps1['dered_z'])]
 
     with h5py.File(results_filename, mode='r') as f:
-        ll = f['cluster_log_likelihood']
+        ll = f['cluster_log_likelihood'][:]
 
     with h5py.File(XCov_filename, mode='r+') as f:
 
         # feature and covariance matrices for all stars
         g = f['all']
-        g.create_dataset('ra', ps1['ra'].shape, dtype='f', data=ps1['ra'])
-        g.create_dataset('dec', ps1['dec'].shape, dtype='f', data=ps1['dec'])
-        g.create_dataset('cluster_log_likelihood', ll.shape, dtype='f', data=ll)
+        if 'ra' not in g:
+            g.create_dataset('ra', ps1['ra'].shape, dtype='f', data=ps1['ra'])
+        if 'dec' not in g:
+            g.create_dataset('dec', ps1['dec'].shape, dtype='f', data=ps1['dec'])
+        if 'cluster_log_likelihood' not in g:
+            g.create_dataset('cluster_log_likelihood', ll.shape, dtype='f', data=ll)
+            print("added log likes")
 
         # define coordinates object for all stars
         ps1_c = coord.ICRS(ra=ps1['ra']*u.degree, dec=ps1['dec']*u.degree)
@@ -68,12 +72,22 @@ def main(XCov_filename, results_filename, ps1_filename):
         cluster_idx = ps1_c.separation(cluster_c) < cluster_pad['inner']
 
         # feature and covariance matrices for NON-cluster stars
-        g = f.create_group('noncluster')
+        # g = f.create_group('noncluster')
+        g = f['noncluster']
         ncX, ncCov = data_to_X_cov(ps1[~cluster_idx])
-        g.create_dataset('X', ncX.shape, dtype='f', data=ncX)
-        g.create_dataset('Cov', ncCov.shape, dtype='f', data=ncCov)
-        g.create_dataset('ra', ncX.shape[0:1], dtype='f', data=ps1[~cluster_idx]['ra'])
-        g.create_dataset('dec', ncX.shape[0:1], dtype='f', data=ps1[~cluster_idx]['dec'])
+        if 'X' not in g:
+            g.create_dataset('X', ncX.shape, dtype='f', data=ncX)
+            g.create_dataset('Cov', ncCov.shape, dtype='f', data=ncCov)
+            g.create_dataset('ra', ncX.shape[0:1], dtype='f', data=ps1[~cluster_idx]['ra'])
+            g.create_dataset('dec', ncX.shape[0:1], dtype='f', data=ps1[~cluster_idx]['dec'])
+        else:
+            g['X'][...] = ncX
+            print('x')
+            g['Cov'][...] = ncCov
+            print('cov')
+            g['ra'][:] = ps1[~cluster_idx]['ra']
+            g['dec'][:] = ps1[~cluster_idx]['dec']
+            print('ra dec')
 
 if __name__ == "__main__":
     import sys
