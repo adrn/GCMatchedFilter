@@ -78,11 +78,6 @@ def initialize(ps1_catalog_file, overwrite=False):
     XCov_filename = os.path.join(basepath, "XCov.h5")
     results_filename = os.path.join(basepath, "results.h5")
 
-    # Load PS1 photometry
-    ps1 = np.load(ps1_catalog_file)
-    ps1 = ps1[np.isfinite(ps1['dered_g']) & np.isfinite(ps1['dered_r']) &
-              np.isfinite(ps1['dered_i']) & np.isfinite(ps1['dered_z'])]
-
     if os.path.exists(XCov_filename) and overwrite:
         logger.debug("Clobbering existing file: {}".format(XCov_filename))
         os.remove(XCov_filename)
@@ -93,6 +88,11 @@ def initialize(ps1_catalog_file, overwrite=False):
     if os.path.exists(XCov_filename) and os.path.exists(results_filename):
         logger.debug("Files already exist: {}, {}".format(XCov_filename, results_filename))
         return XCov_filename, results_filename
+
+    # Load PS1 photometry
+    ps1 = np.load(ps1_catalog_file)
+    ps1 = ps1[np.isfinite(ps1['dered_g']) & np.isfinite(ps1['dered_r']) &
+              np.isfinite(ps1['dered_i']) & np.isfinite(ps1['dered_z'])]
 
     # output hdf5 file
     f = h5py.File(XCov_filename, mode='w')
