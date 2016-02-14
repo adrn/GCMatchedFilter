@@ -33,7 +33,7 @@ def main(input_file):
 
     # make an astropy coordinates object for the stars
     ps1_c = coord.ICRS(ra=ps1['ra']*u.degree, dec=ps1['dec']*u.degree)
-    reddening = reddening(c, survey='PS1', filters='grizy')
+    reddening = sfd.reddening(ps1_c, survey='PS1', filters='grizy')
 
     # deredden the photometry and save as new columns
     for i, band in enumerate('grizy'):
@@ -44,7 +44,6 @@ def main(input_file):
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
-    import logging
 
     # Define parser object
     parser = ArgumentParser(description="")
