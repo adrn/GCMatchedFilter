@@ -6,7 +6,6 @@ __author__ = "adrn <adrn@astro.columbia.edu>"
 
 # Standard library
 import os
-import sys
 
 # Third-party
 import astropy.coordinates as coord
