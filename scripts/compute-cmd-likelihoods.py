@@ -22,7 +22,7 @@ def worker(allX, allCov, clusterX, clusterCov):
     ll = logsumexp(ll, axis=-1) # NOTE: could also max here
     return ll
 
-def main(XCov_filename, chunk_index, n_per_chunk, overwrite=False):
+def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=False):
 
     if not os.path.exists(XCov_filename):
         raise IOError("XCov file '{}' does not exist! Run photometry-to-xcov.py first."
@@ -30,7 +30,7 @@ def main(XCov_filename, chunk_index, n_per_chunk, overwrite=False):
     lock_filename = "{}.lock".format(os.path.splitext(XCov_filename)[0])
 
     # name of the log-likelihood dataset
-    ll_name = 'cluster_log_likelihood'
+    ll_name = "{}_log_likelihood".format(ll_name_prefix.rstrip("_"))
 
     # define a slice object for this chunk to process
     slc = slice(chunk_index*n_per_chunk, (chunk_index+1)*n_per_chunk)
@@ -100,9 +100,13 @@ def main(XCov_filename, chunk_index, n_per_chunk, overwrite=False):
         logger.error("Timed out trying to acquire file lock to write results.")
         sys.exit(1)
 
-def status(XCov_filename):
-    ll_name = 'cluster_log_likelihood'
+def status(XCov_filename, ll_name_prefix):
+    ll_name = "{}_log_likelihood".format(ll_name_prefix.rstrip("_"))
     with h5py.File(XCov_filename, mode='r') as f:
+        if ll_name not in f['all']:
+            logger.info("0 done for '{}'".format(ll_name_prefix))
+            return
+
         ll = f['all'][ll_name]
         ndone = np.isfinite(ll).sum()
         nnot = np.isnan(ll).sum()
@@ -143,6 +147,8 @@ if __name__ == "__main__":
 
     parser.add_argument("-f", "--xcov-filename", dest="XCov_filename", required=True,
                         type=str, help="Full path to XCov file")
+    parser.add_argument("--prefix", dest="prefix", required=True,
+                        type=str, help="Prefix for log-likelihood calc. (cluster or noncluster)")
     parser.add_argument("-n", "--nperchunk", dest="n_per_chunk", default=1000,
                         type=int, help="Number of stars per chunk.")
     parser.add_argument("-i", "--chunk-index", dest="index", default=None,
@@ -159,11 +165,11 @@ if __name__ == "__main__":
         logger.setLevel(logging.INFO)
 
     if args.status:
-        status(args.XCov_filename)
+        status(args.XCov_filename, args.prefix)
         sys.exit(0)
 
     if args.index is None:
         raise ValueError("You must supply a chunk index to process! (-i or --chunk-index)")
 
     main(args.XCov_filename, chunk_index=args.index, n_per_chunk=args.n_per_chunk,
-         overwrite=args.overwrite)
+         overwrite=args.overwrite, ll_name_prefix=args.prefix)
