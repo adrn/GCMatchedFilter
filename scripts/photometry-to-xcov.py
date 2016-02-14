@@ -45,11 +45,11 @@ def data_to_X_cov(data):
 
 def main(ps1_filename, out_filename=None, overwrite=False):
     ps1_filename = os.path.abspath(ps1_filename)
-    basepath = os.path.split(ps1_filename)[0]
+    base_filename = os.path.splitext(ps1_filename)[0]
 
     # save files
     if out_filename is None:
-        out_filename = os.path.join(basepath, "XCov.h5")
+        out_filename = "{}_XCov.h5".format(base_filename)
 
     if os.path.exists(out_filename) and overwrite:
         logger.debug("Clobbering existing file: {}".format(out_filename))
