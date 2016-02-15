@@ -22,6 +22,10 @@ to filter all of the photometry.
 
         python scripts/compute-cmd-likelihoods.py -f path/to/data_file_XCov.h5 -n 1000 -i 0 -v
 
-Or compute the status:
+Or check the status of the run:
 
-        python scripts/compute-cmd-likelihoods.py -f data/ngc5897/PS1_stars_pv3_dered_sm_XCov.h5 --status
+        python scripts/compute-cmd-likelihoods.py -f path/to/data_file_XCov.h5 --status
+
+4. Plot filtered images of number counts of stars
+
+        python make-filtered-images.py -f path/to/data_file_XCov.h5
