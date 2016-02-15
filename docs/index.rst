@@ -18,7 +18,11 @@ to filter all of the photometry.
 
         python scripts/photometry-to-xcov.py --input=path/to/data_file_dered.npy
 
-3. TODO:
+3. Optionally, add an isochrone to the XCov file.
+
+        python scripts/isochrone-to-xcov.py --isochronefile=... --xcovfile=... -v
+
+4. TODO:
 
         python scripts/compute-cmd-likelihoods.py -f path/to/data_file_XCov.h5 -n 1000 -i 0 -v
 
@@ -26,6 +30,6 @@ Or check the status of the run:
 
         python scripts/compute-cmd-likelihoods.py -f path/to/data_file_XCov.h5 --status
 
-4. Plot filtered images of number counts of stars
+5. Plot filtered images of number counts of stars
 
         python make-filtered-images.py -f path/to/data_file_XCov.h5
