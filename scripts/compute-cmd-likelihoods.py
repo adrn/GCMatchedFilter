@@ -22,7 +22,8 @@ def worker(allX, allCov, otherX, otherCov):
     ll = logsumexp(ll, axis=-1) # NOTE: could also max here
     return ll
 
-def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=False):
+def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=False,
+         n_compare=None):
 
     if not os.path.exists(XCov_filename):
         raise IOError("XCov file '{}' does not exist! Run photometry-to-xcov.py first."
@@ -49,7 +50,7 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
                 logger.debug("File lock acquired: creating dataset for log-likelihoods")
                 with h5py.File(XCov_filename, mode='r+') as f:
                     if ll_name not in f['all']:
-                        # file has no cluster_log_likelihood dataset -- make one!
+                        # file has no _log_likelihood dataset -- make one!
                         ll_shape = (f['all']['X'].shape[0],)
                         ll_dset = f['all'].create_dataset(ll_name, ll_shape, dtype='f')
                         ll_dset[:] = np.nan
@@ -81,12 +82,21 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
             X = X[unfinished_idx]
             Cov = Cov[unfinished_idx]
 
-        logger.debug("{} total stars, {} cluster stars, {} chunk stars"
-                     .format(f['all']['X'].shape[0], f[ll_name_prefix]['X'].shape[0], X.shape[0]))
+        # n_compare
+        X_compare = f[ll_name_prefix]['X']
+        Cov_compare = f[ll_name_prefix]['Cov']
+        if n_compare is not None:
+            idx = np.random.randint(X_compare.shape[0], size=n_compare)
+            idx.sort()
+            X_compare = X_compare[idx]
+            Cov_compare = Cov_compare[idx]
+
+        logger.debug("{} total stars, {} comparison stars, {} chunk stars"
+                     .format(f['all']['X'].shape[0], X_compare.shape[0], X.shape[0]))
 
         logger.debug("Computing likelihood for Chunk {} ({}:{})..."
                      .format(chunk_index,slc.start,slc.stop))
-        ll = worker(X, Cov, f[ll_name_prefix]['X'], f[ll_name_prefix]['Cov'])
+        ll = worker(X, Cov, X_compare, Cov_compare)
         logger.debug("...finished computing log-likelihoods")
 
     lock = filelock.FileLock(lock_filename)
@@ -153,6 +163,9 @@ if __name__ == "__main__":
                         type=int, help="Number of stars per chunk.")
     parser.add_argument("-i", "--chunk-index", dest="index", default=None,
                         type=int, help="Index of the chunk to process.")
+    parser.add_argument("--ncompare", dest="n_compare", default=5000,
+                        type=int, help="Number of points (stars for cluster or noncluster) "
+                                       "to compare to.")
 
     args = parser.parse_args()
 
@@ -172,4 +185,4 @@ if __name__ == "__main__":
         raise ValueError("You must supply a chunk index to process! (-i or --chunk-index)")
 
     main(args.XCov_filename, chunk_index=args.index, n_per_chunk=args.n_per_chunk,
-         overwrite=args.overwrite, ll_name_prefix=args.prefix)
+         overwrite=args.overwrite, ll_name_prefix=args.prefix, n_compare=args.n_compare)
