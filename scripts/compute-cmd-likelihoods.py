@@ -164,7 +164,7 @@ if __name__ == "__main__":
                         type=int, help="Number of stars per chunk.")
     parser.add_argument("-i", "--chunk-index", dest="index", default=None,
                         type=int, help="Index of the chunk to process.")
-    parser.add_argument("--ncompare", dest="n_compare", default=5000,
+    parser.add_argument("--ncompare", dest="n_compare", default=None,
                         type=int, help="Number of points (stars for cluster or noncluster) "
                                        "to compare to.")
 
