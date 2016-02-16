@@ -88,6 +88,7 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
         if n_compare is not None:
             idx = np.random.randint(X_compare.shape[0], size=n_compare)
             idx.sort()
+            idx = idx.tolist()
             X_compare = X_compare[idx]
             Cov_compare = Cov_compare[idx]
 
