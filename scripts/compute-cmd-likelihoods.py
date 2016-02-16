@@ -82,7 +82,7 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
             Cov = Cov[unfinished_idx]
 
         logger.debug("{} total stars, {} cluster stars, {} chunk stars"
-                     .format(f['all']['X'].shape[0], f[ll_name]['X'].shape[0], X.shape[0]))
+                     .format(f['all']['X'].shape[0], f[ll_name_prefix]['X'].shape[0], X.shape[0]))
 
         logger.debug("Computing likelihood for Chunk {} ({}:{})..."
                      .format(chunk_index,slc.start,slc.stop))

@@ -25,12 +25,10 @@ def iso_to_XCov(data, smooth=0.1):
                   [1, 0, 0, -1]])  # g-z color
     X = np.dot(X, W.T)
 
-    H = np.diag([smooth]*X.shape[1])
-    H = H[np.newaxis]
-
     # compute error covariance with mixing matrix
-    Cov = np.zeros(H.shape + H.shape[-1:])
-    Cov[:, range(H.shape[1]), range(H.shape[1])] = H ** 2
+    Cov = np.zeros(X.shape + (X.shape[-1],))
+    for i in range(X.shape[1]):
+        Cov[:,i,i] = smooth**2
 
     # each covariance C = WCW^T
     Cov = np.tensordot(np.dot(Cov, W.T), W, (-2, -1))
@@ -46,10 +44,20 @@ def main(iso_filename, XCov_filename, smooth, overwrite=False):
 
         # feature and covariance matrices for all stars
         X,Cov = iso_to_XCov(iso, smooth=smooth)
-        g = f.create_group('isochrone')
-        g.create_dataset('X', X.shape, dtype='f', data=X)
-        g.create_dataset('Cov', Cov.shape, dtype='f', data=Cov)
 
+        if 'isochrone' in f and overwrite:
+            f.__delitem__('isochrone')
+            logger.debug("Overwriting isochrone data")
+
+        if 'isochrone' not in f:
+            g = f.create_group('isochrone')
+        else:
+            g = f['isochrone']
+        
+        if 'X' not in f['isochrone'] or 'Cov' not in f['isochrone']:
+            g.create_dataset('X', X.shape, dtype='f', data=X)
+            g.create_dataset('Cov', Cov.shape, dtype='f', data=Cov)
+        
         f.flush()
         logger.debug("Saved isochrone to {}".format(XCov_filename))
 
@@ -85,4 +93,4 @@ if __name__ == "__main__":
 
     main(iso_filename=args.iso_filename,
          XCov_filename=args.XCov_filename,
-         smooth=args.smooth)
+         smooth=args.smooth, overwrite=args.overwrite)
