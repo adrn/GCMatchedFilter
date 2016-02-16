@@ -16,9 +16,9 @@ from scipy.misc import logsumexp
 import filelock
 import h5py
 
-def worker(allX, allCov, clusterX, clusterCov):
-    V = allCov[:,np.newaxis,:,:] + clusterCov
-    ll = log_multivariate_gaussian(allX[:,np.newaxis,:], clusterX, V)
+def worker(allX, allCov, otherX, otherCov):
+    V = allCov[:,np.newaxis,:,:] + otherCov
+    ll = log_multivariate_gaussian(allX[:,np.newaxis,:], otherX, V)
     ll = logsumexp(ll, axis=-1) # NOTE: could also max here
     return ll
 
@@ -82,11 +82,11 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
             Cov = Cov[unfinished_idx]
 
         logger.debug("{} total stars, {} cluster stars, {} chunk stars"
-                     .format(f['all']['X'].shape[0], f['cluster']['X'].shape[0], X.shape[0]))
+                     .format(f['all']['X'].shape[0], f[ll_name]['X'].shape[0], X.shape[0]))
 
         logger.debug("Computing likelihood for Chunk {} ({}:{})..."
                      .format(chunk_index,slc.start,slc.stop))
-        ll = worker(X, Cov, f['cluster']['X'], f['cluster']['Cov'])
+        ll = worker(X, Cov, f[ll_name]['X'], f[ll_name]['Cov'])
         logger.debug("...finished computing log-likelihoods")
 
     lock = filelock.FileLock(lock_filename)
