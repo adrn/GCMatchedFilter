@@ -86,7 +86,7 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
 
         logger.debug("Computing likelihood for Chunk {} ({}:{})..."
                      .format(chunk_index,slc.start,slc.stop))
-        ll = worker(X, Cov, f[ll_name]['X'], f[ll_name]['Cov'])
+        ll = worker(X, Cov, f[ll_name_prefix]['X'], f[ll_name_prefix]['Cov'])
         logger.debug("...finished computing log-likelihoods")
 
     lock = filelock.FileLock(lock_filename)
