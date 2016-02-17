@@ -86,9 +86,16 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
         X_compare = f[ll_name_prefix]['X']
         Cov_compare = f[ll_name_prefix]['Cov']
         if n_compare is not None:
-            idx = np.random.randint(X_compare.shape[0], size=n_compare)
-            idx.sort()
-            idx = idx.tolist()
+            # Note: can't use randint here because non-unique lists cause an OSError,
+            #   using np.random.choice on an int array uses a bit of memory
+            idx = []
+            iterations = 0
+            while len(idx) < n_compare and iterations < 1E8:
+                s = np.random.randint(X_compare.shape[0])
+                if s not in idx:
+                    idx.append(s)
+                iterations += 1
+
             X_compare = X_compare[idx]
             Cov_compare = Cov_compare[idx]
 
