@@ -64,6 +64,11 @@ def main(ps1_filename, out_filename=None, overwrite=False):
     ps1 = ps1[np.isfinite(ps1['dered_g']) & np.isfinite(ps1['dered_r']) &
               np.isfinite(ps1['dered_i']) & np.isfinite(ps1['dered_z'])]
 
+    # HACK:
+    sky_ix = ((ps1['ra'] > 225.) & (ps1['ra'] < 235.) &
+              (ps1['dec'] > -26.) & (ps1['dec'] < -16.))
+    ps1 = ps1[sky_ix]
+
     # output hdf5 file
     # TODO: right now, this saves multiple versions of the data because I SUCK
     with h5py.File(out_filename, mode='w') as f:
