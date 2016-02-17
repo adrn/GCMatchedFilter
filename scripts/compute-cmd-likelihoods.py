@@ -95,7 +95,7 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
                 if s not in idx:
                     idx.append(s)
                 iterations += 1
-
+            idx = sorted(idx)
             X_compare = X_compare[idx]
             Cov_compare = Cov_compare[idx]
 
