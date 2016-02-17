@@ -16,14 +16,19 @@ from scipy.misc import logsumexp
 import filelock
 import h5py
 
-def worker(allX, allCov, otherX, otherCov):
+def worker(allX, allCov, otherX, otherCov, smooth=None):
     V = allCov[:,np.newaxis,:,:] + otherCov
+
+    if smooth is not None:
+        H = np.ones(allCov.shape[-2:]) * smooth**2
+        V += H[np.newaxis,np.newaxis]
+
     ll = log_multivariate_gaussian(allX[:,np.newaxis,:], otherX, V)
     ll = logsumexp(ll, axis=-1) # NOTE: could also max here
     return ll
 
 def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=False,
-         n_compare=None):
+         n_compare=None, smooth=None):
 
     if not os.path.exists(XCov_filename):
         raise IOError("XCov file '{}' does not exist! Run photometry-to-xcov.py first."
@@ -104,7 +109,7 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
 
         logger.debug("Computing likelihood for Chunk {} ({}:{})..."
                      .format(chunk_index,slc.start,slc.stop))
-        ll = worker(X, Cov, X_compare, Cov_compare)
+        ll = worker(X, Cov, X_compare, Cov_compare, smooth=smooth)
         logger.debug("...finished computing log-likelihoods")
 
     lock = filelock.FileLock(lock_filename)
@@ -174,6 +179,8 @@ if __name__ == "__main__":
     parser.add_argument("--ncompare", dest="n_compare", default=None,
                         type=int, help="Number of points (stars for cluster or noncluster) "
                                        "to compare to.")
+    parser.add_argument("--smooth", dest="smooth", default=None,
+                        type=float, help="Smooth comparison by this amount (units: mag)")
 
     args = parser.parse_args()
 
@@ -193,4 +200,5 @@ if __name__ == "__main__":
         raise ValueError("You must supply a chunk index to process! (-i or --chunk-index)")
 
     main(args.XCov_filename, chunk_index=args.index, n_per_chunk=args.n_per_chunk,
-         overwrite=args.overwrite, ll_name_prefix=args.prefix, n_compare=args.n_compare)
+         overwrite=args.overwrite, ll_name_prefix=args.prefix, n_compare=args.n_compare,
+         smooth=args.smooth)
