@@ -4,13 +4,8 @@ from __future__ import division, print_function
 
 __author__ = "adrn <adrn@astro.columbia.edu>"
 
-# Standard library
-import os
-
 # Third-party
-import astropy.coordinates as coord
 from astropy import log as logger
-import astropy.units as u
 from astropy.io import ascii
 import numpy as np
 import h5py
@@ -22,7 +17,7 @@ def iso_to_XCov(data, smooth=0.1):
     W = np.array([[1, 0, 0, 0],    # g magnitude
                   [1, -1, 0, 0],   # g-r color
                   [1, 0, -1, 0],   # g-i
-                  [1, 0, 0, -1]])  # g-z 
+                  [1, 0, 0, -1]])  # g-z
     X = np.dot(X, W.T)
 
     # compute error covariance with mixing matrix
@@ -32,7 +27,7 @@ def iso_to_XCov(data, smooth=0.1):
 
     # each covariance C = WCW^T
     Cov = np.tensordot(np.dot(Cov, W.T), W, (-2, -1))
-    
+
     # HACK: slicing to ignore z
     return X[:,:3], Cov[:,:3,:3]
 
