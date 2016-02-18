@@ -20,7 +20,7 @@ def worker(allX, allCov, otherX, otherCov, smooth=None):
     V = allCov[:,np.newaxis,:,:] + otherCov
 
     if smooth is not None:
-        H = np.ones(allCov.shape[-2:]) * smooth**2
+        H = np.zeros(allCov.shape[-2:]) + smooth**2
         V += H[np.newaxis,np.newaxis]
 
     ll = log_multivariate_gaussian(allX[:,np.newaxis,:], otherX, V)
