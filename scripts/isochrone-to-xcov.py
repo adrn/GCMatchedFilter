@@ -16,13 +16,13 @@ import numpy as np
 import h5py
 
 def iso_to_XCov(data, smooth=0.1):
-    X = np.vstack([data['{}P1'.format(band)] for band in 'griz']).T
+    X = np.vstack([data['{}P1'.format(band)] for band in 'gri']).T
 
     # mixing matrix W
     W = np.array([[1, 0, 0, 0],    # g magnitude
                   [1, -1, 0, 0],   # g-r color
-                  [1, 0, -1, 0],   # g-i color
-                  [1, 0, 0, -1]])  # g-z color
+                  [1, 0, -1, 0]])   # g-i color
+    #              [1, 0, 0, -1]])  # g-z color IGNORING NOW
     X = np.dot(X, W.T)
 
     # compute error covariance with mixing matrix
@@ -53,11 +53,11 @@ def main(iso_filename, XCov_filename, smooth, overwrite=False):
             g = f.create_group('isochrone')
         else:
             g = f['isochrone']
-        
+
         if 'X' not in f['isochrone'] or 'Cov' not in f['isochrone']:
             g.create_dataset('X', X.shape, dtype='f', data=X)
             g.create_dataset('Cov', Cov.shape, dtype='f', data=Cov)
-        
+
         f.flush()
         logger.debug("Saved isochrone to {}".format(XCov_filename))
 

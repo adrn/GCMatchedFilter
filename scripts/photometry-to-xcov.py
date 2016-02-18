@@ -24,14 +24,14 @@ cluster_pad = {
 }
 
 def data_to_X_cov(data):
-    X = np.vstack([data['dered_{}'.format(band)] for band in 'griz']).T
-    Xerr = np.vstack([data['{}Err'.format(band)] for band in 'griz']).T
+    X = np.vstack([data['dered_{}'.format(band)] for band in 'gri']).T
+    Xerr = np.vstack([data['{}Err'.format(band)] for band in 'gri']).T
 
     # mixing matrix W
     W = np.array([[1, 0, 0, 0],    # g magnitude
                   [1, -1, 0, 0],   # g-r color
-                  [1, 0, -1, 0],   # g-i color
-                  [1, 0, 0, -1]])  # g-z color
+                  [1, 0, -1, 0]])   # g-i color
+    # [1, 0, 0, -1]])  # g-z color IGNORING NOW
     X = np.dot(X, W.T)
 
     # compute error covariance with mixing matrix
@@ -69,7 +69,7 @@ def main(ps1_filename, out_filename=None, overwrite=False):
     # Load PS1 photometry
     ps1 = np.load(ps1_filename)
     ps1 = ps1[np.isfinite(ps1['dered_g']) & np.isfinite(ps1['dered_r']) &
-              np.isfinite(ps1['dered_i']) & np.isfinite(ps1['dered_z'])]
+              np.isfinite(ps1['dered_i'])]
 
     # HACK:
     sky_ix = ((ps1['ra'] > 225.) & (ps1['ra'] < 235.) &
