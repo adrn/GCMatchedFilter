@@ -24,15 +24,15 @@ cluster_pad = {
 }
 
 def data_to_X_cov(data):
-    X = np.vstack([data['dered_{}'.format(band)] for band in 'gri']).T
-    Xerr = np.vstack([data['{}Err'.format(band)] for band in 'gri']).T
+    X = np.vstack([data['dered_{}'.format(band)] for band in 'griz']).T
+    Xerr = np.vstack([data['{}Err'.format(band)] for band in 'griz']).T
 
     # mixing matrix W
     W = np.array([[1, 0, 0, 0],    # g magnitude
                   [1, -1, 0, 0],   # g-r color
-                  [1, 0, -1, 0]])   # g-i color
-    # [1, 0, 0, -1]])  # g-z color IGNORING NOW
-    X = np.dot(X, W.T)
+                  [1, 0, -1, 0],   # g-i
+                  [1, 0, 0, -1]])  # g-z
+    X = np.dot(X, W.T) 
 
     # compute error covariance with mixing matrix
     Xcov = np.zeros(Xerr.shape + Xerr.shape[-1:])
@@ -40,8 +40,9 @@ def data_to_X_cov(data):
 
     # each covariance C = WCW^T
     Xcov = np.tensordot(np.dot(Xcov, W.T), W, (-2, -1))
-
-    return X, Xcov
+    
+    # HACK: slicing to ignore z
+    return X[:,:3], Xcov[:,:3,:3]
 
 # HACK:
 def color_cut(X, lims):
@@ -77,8 +78,7 @@ def main(ps1_filename, out_filename=None, overwrite=False):
     ps1 = ps1[sky_ix]
     allX, allCov = data_to_X_cov(ps1)
     col_ix = color_cut(allX,
-                       lims=[(14.,21.), (0,0.7),
-                             (0,0.8), (0,0.8)])
+                       lims=[(14.,21.), (0,0.7), (0,0.8)])
     ps1 = ps1[col_ix]
 
     # output hdf5 file
