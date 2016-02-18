@@ -32,7 +32,7 @@ def data_to_X_cov(data):
                   [1, -1, 0, 0],   # g-r color
                   [1, 0, -1, 0],   # g-i
                   [1, 0, 0, -1]])  # g-z
-    X = np.dot(X, W.T) 
+    X = np.dot(X, W.T)
 
     # compute error covariance with mixing matrix
     Xcov = np.zeros(Xerr.shape + Xerr.shape[-1:])
@@ -40,7 +40,7 @@ def data_to_X_cov(data):
 
     # each covariance C = WCW^T
     Xcov = np.tensordot(np.dot(Xcov, W.T), W, (-2, -1))
-    
+
     # HACK: slicing to ignore z
     return X[:,:3], Xcov[:,:3,:3]
 
@@ -80,6 +80,9 @@ def main(ps1_filename, out_filename=None, overwrite=False):
     col_ix = color_cut(allX,
                        lims=[(14.,21.), (0,0.7), (0,0.8)])
     ps1 = ps1[col_ix]
+
+    # randomize ps1 array so i can do simple slicing later
+    np.random.shuffle(ps1)
 
     # output hdf5 file
     # TODO: right now, this saves multiple versions of the data because I SUCK
