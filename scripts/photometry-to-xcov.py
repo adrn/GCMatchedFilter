@@ -43,6 +43,13 @@ def data_to_X_cov(data):
 
     return X, Xcov
 
+# HACK:
+def color_cut(X, lims):
+    idx = np.ones(X.shape[0]).astype(bool)
+    for i,(lo,hi) in enumerate(lims):
+        idx &= (X[:,i] > lo) & (X[:,i] < hi)
+    return idx
+
 def main(ps1_filename, out_filename=None, overwrite=False):
     ps1_filename = os.path.abspath(ps1_filename)
     base_filename = os.path.splitext(ps1_filename)[0]
@@ -68,6 +75,11 @@ def main(ps1_filename, out_filename=None, overwrite=False):
     sky_ix = ((ps1['ra'] > 225.) & (ps1['ra'] < 235.) &
               (ps1['dec'] > -26.) & (ps1['dec'] < -16.))
     ps1 = ps1[sky_ix]
+    allX, allCov = data_to_X_cov(ps1)
+    col_ix = color_cut(allX,
+                       lims=[(14.,21.), (0,0.7),
+                             (0,0.8), (0,0.8)])
+    ps1 = ps1[col_ix]
 
     # output hdf5 file
     # TODO: right now, this saves multiple versions of the data because I SUCK
