@@ -195,6 +195,8 @@ if __name__ == "__main__":
                                        "to compare to.")
     parser.add_argument("--smooth", dest="smooth", default=None,
                         type=float, help="Smooth comparison by this amount (units: mag)")
+    parser.add_argument("--dm", dest="distance_modulus", default=None,
+                        type=float, help="Distance modulus for isochrone.")
 
     args = parser.parse_args()
 
@@ -215,4 +217,4 @@ if __name__ == "__main__":
 
     main(args.XCov_filename, chunk_index=args.index, n_per_chunk=args.n_per_chunk,
          overwrite=args.overwrite, ll_name_prefix=args.prefix, n_compare=args.n_compare,
-         smooth=args.smooth)
+         smooth=args.smooth, dm=args.distance_modulus)
