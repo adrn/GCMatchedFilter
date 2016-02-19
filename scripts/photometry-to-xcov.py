@@ -73,12 +73,12 @@ def main(ps1_filename, out_filename=None, overwrite=False):
               np.isfinite(ps1['dered_i'])]
 
     # HACK:
-    sky_ix = ((ps1['ra'] > 225.) & (ps1['ra'] < 235.) &
-              (ps1['dec'] > -26.) & (ps1['dec'] < -16.))
+    sky_ix = ((ps1['ra'] > 220.) & (ps1['ra'] < 240.) &
+              (ps1['dec'] > -32.) & (ps1['dec'] < -12.))
     ps1 = ps1[sky_ix]
     allX, allCov = data_to_X_cov(ps1)
     col_ix = color_cut(allX,
-                       lims=[(14.,21.), (0,0.7), (0,0.8)])
+                       lims=[(17.,21.), (0,0.7), (0,0.8)])
     ps1 = ps1[col_ix]
 
     # randomize ps1 array so i can do simple slicing later
