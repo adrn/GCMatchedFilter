@@ -55,8 +55,6 @@ def main(iso_filename, XCov_filename, smooth, overwrite=False):
         # feature and covariance matrices for all stars
         X,Cov = iso_to_XCov(iso, smooth=smooth)
 
-        return
-
         if 'isochrone' in f and overwrite:
             f.__delitem__('isochrone')
             logger.debug("Overwriting isochrone data")
