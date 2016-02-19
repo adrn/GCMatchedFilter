@@ -52,13 +52,13 @@ def main(iso_filename, XCov_filename, smooth, interpolate=False, overwrite=False
     # iso[114:] = iso[114:][::-1]
 
     # FOR DARTMOTH ISOCHRONE
-    iso = ascii.read(iso_filename, header_start=8, interpolate=interpolate)
+    iso = ascii.read(iso_filename, header_start=8)
 
     # output hdf5 file
     with h5py.File(XCov_filename, mode='r+') as f:
 
         # feature and covariance matrices for all stars
-        X,Cov = iso_to_XCov(iso, smooth=smooth)
+        X,Cov = iso_to_XCov(iso, smooth=smooth, interpolate=interpolate)
 
         if 'isochrone' in f and overwrite:
             f.__delitem__('isochrone')
