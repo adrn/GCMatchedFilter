@@ -6,7 +6,7 @@
 #PBS -l nodes=1:ppn=1,walltime=00:45:00,mem=8gb
 #PBS -V
 #PBS -t 0-694
-#PBS -m -n
+#PBS -m n
 
 # Set output and error directories
 #PBS -o localhost:/vega/astro/users/amp2217/pbs_output
