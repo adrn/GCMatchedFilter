@@ -11,7 +11,7 @@ import numpy as np
 import h5py
 from scipy.interpolate import splprep, splev
 
-def iso_to_XCov(data, smooth=0.1):
+def iso_to_XCov(data, smooth=0.1, interpolate=False):
     X = np.vstack([data['{}P1'.format(band)] for band in 'griz']).T
 
     # mixing matrix W
@@ -21,13 +21,14 @@ def iso_to_XCov(data, smooth=0.1):
                   [1, 0, 0, -1]])  # g-z
     X = np.dot(X, W.T)
 
-    # interpolate
-    t = np.linspace(0, 1, X.shape[0])
-    tck, u = splprep(X.T, s=0, u=t)
+    if interpolate:
+        # interpolate
+        t = np.linspace(0, 1, X.shape[0])
+        tck, u = splprep(X.T, s=0, u=t)
 
-    tnew = np.linspace(0, 1, 4096)
-    Xinterp = np.array(splev(tnew, tck)).T
-    X = Xinterp
+        tnew = np.linspace(0, 1, 4096)
+        Xinterp = np.array(splev(tnew, tck)).T
+        X = Xinterp
 
     # compute error covariance with mixing matrix
     Cov = np.zeros(X.shape + (X.shape[-1],))
@@ -44,10 +45,14 @@ def iso_to_XCov(data, smooth=0.1):
     # HACK: slicing to ignore z
     return X[:,:3], Cov[:,:3,:3]
 
-def main(iso_filename, XCov_filename, smooth, overwrite=False):
+def main(iso_filename, XCov_filename, smooth, interpolate=False, overwrite=False):
 
-    iso = ascii.read(iso_filename, header_start=13)
-    iso[114:] = iso[114:][::-1]
+    # FOR PARSEC ISOCHRONE
+    # iso = ascii.read(iso_filename, header_start=13)
+    # iso[114:] = iso[114:][::-1]
+
+    # FOR DARTMOTH ISOCHRONE
+    iso = ascii.read(iso_filename, header_start=8, interpolate=interpolate)
 
     # output hdf5 file
     with h5py.File(XCov_filename, mode='r+') as f:
