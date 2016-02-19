@@ -28,7 +28,7 @@ def worker(allX, allCov, otherX, otherCov, smooth=None):
     return ll
 
 def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=False,
-         n_compare=None, smooth=None):
+         n_compare=None, smooth=None, dm=None):
 
     if not os.path.exists(XCov_filename):
         raise IOError("XCov file '{}' does not exist! Run photometry-to-xcov.py first."
@@ -36,7 +36,13 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
     lock_filename = "{}.lock".format(os.path.splitext(XCov_filename)[0])
 
     # name of the log-likelihood dataset
-    ll_name = "{}_log_likelihood".format(ll_name_prefix.rstrip("_"))
+    if ll_name_prefix == 'isochrone':
+        if dm is None:
+            raise ValueError("If isochrone, must specify distance modulus (--dm=...)")
+        ll_name = "isochrone_{:.2f}_log_likelihood".format(dm)
+
+    else:
+        ll_name = "{}_log_likelihood".format(ll_name_prefix.rstrip("_"))
 
     # define a slice object for this chunk to process
     slc = slice(chunk_index*n_per_chunk, (chunk_index+1)*n_per_chunk)
@@ -90,6 +96,7 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
         # n_compare
         X_compare = f[ll_name_prefix]['X']
         Cov_compare = f[ll_name_prefix]['Cov']
+
         if n_compare is not None:
             # Note: can't use randint here because non-unique lists cause an OSError,
             #   using np.random.choice on an int array uses a bit of memory
@@ -103,6 +110,13 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
             idx = sorted(idx)
             X_compare = X_compare[idx]
             Cov_compare = Cov_compare[idx]
+
+        else:
+            X_compare = X_compare[:]
+            Cov_compare = Cov_compare[:]
+
+        if ll_name_prefix == 'isochrone':
+            X_compare[:,0] += dm # add distance modulus
 
         logger.debug("{} total stars, {} comparison stars, {} chunk stars"
                      .format(f['all']['X'].shape[0], X_compare.shape[0], X.shape[0]))

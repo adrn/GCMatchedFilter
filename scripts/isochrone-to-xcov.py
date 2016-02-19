@@ -38,10 +38,6 @@ def iso_to_XCov(data, smooth=0.1, interpolate=False):
     # each covariance C = WCW^T
     Cov = np.tensordot(np.dot(Cov, W.T), W, (-2, -1))
 
-    # HACK:
-    DM = 15.62
-    X[:,0] += DM
-
     # HACK: slicing to ignore z
     return X[:,:3], Cov[:,:3,:3]
 
