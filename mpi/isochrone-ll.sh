@@ -3,9 +3,9 @@
 # Directives
 #PBS -N globber-isochrone
 #PBS -W group_list=yetiastro
-#PBS -l nodes=1:ppn=1,walltime=00:05:00,mem=1gb
+#PBS -l nodes=1:ppn=1,walltime=00:15:00,mem=4gb
 #PBS -V
-#PBS -t 0-694
+#PBS -t 0-157
 #PBS -m n
 
 # Set output and error directories
@@ -22,7 +22,7 @@ cd /vega/astro/users/amp2217/projects/globber/
 source activate globber
 
 # New run
-python scripts/compute-cmd-likelihoods.py -f data/ngc5897/XCov_sm.h5 -n 1000 -i $PBS_ARRAYID --prefix=isochrone --smooth=0.005 -o
+python scripts/compute-cmd-likelihoods.py -f data/ngc5897/XCov_med.h5 -n 16000 -i $PBS_ARRAYID --prefix=isochrone  -o --dm=17.4
 
 date
 

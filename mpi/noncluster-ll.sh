@@ -5,7 +5,8 @@
 #PBS -W group_list=yetiastro
 #PBS -l nodes=1:ppn=1,walltime=00:45:00,mem=8gb
 #PBS -V
-#PBS -t 0-694
+#PBS -t 1311
+# 2501
 #PBS -m n
 
 # Set output and error directories
@@ -22,7 +23,7 @@ cd /vega/astro/users/amp2217/projects/globber/
 source activate globber
 
 # New run
-python scripts/compute-cmd-likelihoods.py -f data/ngc5897/XCov_sm.h5 -n 1000 -i $PBS_ARRAYID --prefix=noncluster -v --ncompare=10000 --smooth=0.1 -o
+python scripts/compute-cmd-likelihoods.py -f data/ngc5897/XCov_med.h5 -n 1000 -i $PBS_ARRAYID --prefix=noncluster -v --ncompare=10000 --smooth=0.1 -o
 
 date
 
