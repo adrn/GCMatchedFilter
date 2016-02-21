@@ -14,13 +14,13 @@ This will output a Numpy save file containing the cleaned catalog information
 with the dereddened photometry.
 
 2. Convert the photometry into the colors and covariances taht we will use
-to filter all of the photometry.
+to filter all of the photometry:
 
-        python scripts/photometry-to-xcov.py --input=path/to/data_file_dered.npy
+        python scripts/photometry-to-xcov.py --input=data/ngc5897/PS1_stars_pv3_dered.npy --output=data/ngc5897/XCov_sm.h5 -v
 
 3. Optionally, add an isochrone to the XCov file.
 
-        python scripts/isochrone-to-xcov.py --isochronefile=... --xcovfile=... -v
+        python scripts/isochrone-to-xcov.py --iso-file=data/ngc5897/ngc5897_iso_ps1.dat --xcov-file=data/ngc5897/XCov_sm.h5 -v
 
 4. TODO:
 
