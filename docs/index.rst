@@ -18,7 +18,7 @@ to filter the cluster photometry:
 
         python scripts/photometry-to-xcov.py --input=data/ngc5897/PS1_stars_pv3_dered.npy --output=data/ngc5897/XCov_med.h5 -v
 
-3. Optionally, add an isochrone to the XCov file.
+3. (optional) add an isochrone to the color-covariance file:
 
         python scripts/isochrone-to-xcov.py --iso-file=data/ngc5897/dartmouth_iso_ps1.dat --xcov-file=data/ngc5897/XCov_med.h5 -v
 
