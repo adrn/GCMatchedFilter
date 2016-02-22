@@ -49,7 +49,7 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
 
     # only one process should modify the file to add the dataset if it doesn't exist
     with h5py.File(XCov_filename, mode='r') as f:
-        if ll_name not in f['all']:
+        if ll_name not in f['search']:
             make_ll_dataset = True
         else:
             make_ll_dataset = False
@@ -60,10 +60,10 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
             with lock.acquire(timeout=90):
                 logger.debug("File lock acquired: creating dataset for log-likelihoods")
                 with h5py.File(XCov_filename, mode='r+') as f:
-                    if ll_name not in f['all']:
+                    if ll_name not in f['search']:
                         # file has no _log_likelihood dataset -- make one!
-                        ll_shape = (f['all']['X'].shape[0],)
-                        ll_dset = f['all'].create_dataset(ll_name, ll_shape, dtype='f')
+                        ll_shape = (f['search']['X'].shape[0],)
+                        ll_dset = f['search'].create_dataset(ll_name, ll_shape, dtype='f')
                         ll_dset[:] = np.nan
                         ll = ll_dset[slc]
         except filelock.Timeout:
@@ -71,7 +71,7 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
             sys.exit(1)
 
     with h5py.File(XCov_filename, mode='r') as f:
-        ll = f['all'][ll_name][slc]
+        ll = f['search'][ll_name][slc]
 
         if np.isfinite(ll).all() and not overwrite:
             logger.debug("All log-likelihoods already computed for Chunk {} ({}:{})"
@@ -87,8 +87,8 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
             some_unfinished = False
 
         # slice out this chunk
-        X = f['all']['X'][slc]
-        Cov = f['all']['Cov'][slc]
+        X = f['search']['X'][slc]
+        Cov = f['search']['Cov'][slc]
         if some_unfinished:
             X = X[unfinished_idx]
             Cov = Cov[unfinished_idx]
@@ -119,7 +119,7 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
             X_compare[:,0] += dm # add distance modulus
 
         logger.debug("{} total stars, {} comparison stars, {} chunk stars"
-                     .format(f['all']['X'].shape[0], X_compare.shape[0], X.shape[0]))
+                     .format(f['search']['X'].shape[0], X_compare.shape[0], X.shape[0]))
 
         logger.debug("Computing likelihood for Chunk {} ({}:{})..."
                      .format(chunk_index,slc.start,slc.stop))
@@ -131,7 +131,7 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
         with lock.acquire(timeout=300):
             logger.debug("File lock acquired - writing to results")
             with h5py.File(XCov_filename, mode='r+') as f:
-                f['all'][ll_name][slc] = ll
+                f['search'][ll_name][slc] = ll
 
     except filelock.Timeout:
         logger.error("Timed out trying to acquire file lock to write results.")
@@ -140,11 +140,11 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
 def status(XCov_filename, ll_name_prefix):
     ll_name = "{}_log_likelihood".format(ll_name_prefix.rstrip("_"))
     with h5py.File(XCov_filename, mode='r') as f:
-        if ll_name not in f['all']:
+        if ll_name not in f['search']:
             logger.info("0 done for '{}'".format(ll_name_prefix))
             return
 
-        ll = f['all'][ll_name]
+        ll = f['search'][ll_name]
         ndone = np.isfinite(ll).sum()
         nnot = np.isnan(ll).sum()
         logger.info("{} done, {} not done".format(ndone, nnot))
