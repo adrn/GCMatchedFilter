@@ -46,16 +46,19 @@ def data_to_X_cov(data):
                   [1, -1, 0, 0],   # g-r color
                   [1, 0, -1, 0],   # g-i
                   [1, 0, 0, -1]])  # g-z
-    X = np.dot(X, W.T)
+    # X = np.dot(X, W.T)
+    X = np.einsum('nj,mj->nm', X, W)
 
     # compute error covariance with mixing matrix
-    Xcov = np.zeros(Xerr.shape + Xerr.shape[-1:])
-    Xcov[:, range(Xerr.shape[1]), range(Xerr.shape[1])] = Xerr ** 2
+    Cov = np.zeros(Xerr.shape + Xerr.shape[-1:])
+    for i in range(Xerr.shape[1]):
+        Cov[:,i,i] = Xerr[:,i]**2
 
     # each covariance C = WCW^T
-    Xcov = np.tensordot(np.dot(Xcov, W.T), W, (-2, -1))
+    Cov = np.einsum('mj,njk->nmk', W, Cov)
+    Cov = np.einsum('lk,nmk->nml', W, Cov)
 
-    return X[:,1:], Xcov[:,1:,1:] # ignore g magnitude
+    return X[:,1:], Cov[:,1:,1:] # ignore g magnitude
 
 def between(arr, lims):
     return (arr >= lims[0]) & (arr < lims[1])

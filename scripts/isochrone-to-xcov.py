@@ -14,12 +14,15 @@ from scipy.interpolate import splprep, splev
 def iso_to_XCov(data, smooth=0.1, interpolate=False):
     X = np.vstack([data['{}P1'.format(band)] for band in 'griz']).T
 
+    # HACK: this is fixed...colors should be customizable too, eh?
     # mixing matrix W
     W = np.array([[1, 0, 0, 0],    # g magnitude
+                  [0, 0, 1, 0],    # i magnitude
                   [1, -1, 0, 0],   # g-r color
                   [1, 0, -1, 0],   # g-i
                   [1, 0, 0, -1]])  # g-z
-    X = np.dot(X, W.T)
+    # X = np.dot(X, W.T)
+    X = np.einsum('nj,mj->nm', X, W)
 
     if interpolate:
         # interpolate
@@ -31,15 +34,15 @@ def iso_to_XCov(data, smooth=0.1, interpolate=False):
         X = Xinterp
 
     # compute error covariance with mixing matrix
-    Cov = np.zeros(X.shape + (X.shape[-1],))
-    for i in range(X.shape[1]):
+    Cov = np.zeros((X.shape[0], W.shape[1], W.shape[1]))
+    for i in range(W.shape[1]):
         Cov[:,i,i] = smooth**2
 
     # each covariance C = WCW^T
-    Cov = np.tensordot(np.dot(Cov, W.T), W, (-2, -1))
+    Cov = np.einsum('mj,njk->nmk', W, Cov)
+    Cov = np.einsum('lk,nmk->nml', W, Cov)
 
-    # HACK: slicing to ignore z
-    return X[:,:3], Cov[:,:3,:3]
+    return X[:,1:], Cov[:,1:,1:]
 
 def main(iso_filename, XCov_filename, smooth, interpolate=False, overwrite=False):
 
