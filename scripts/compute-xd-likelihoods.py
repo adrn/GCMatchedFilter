@@ -95,11 +95,11 @@ def main(XCov_filename, xd_filename, chunk_index, n_per_chunk, overwrite=False):
         logger.error("Timed out trying to acquire file lock to write results.")
         sys.exit(1)
 
-def status(XCov_filename, ll_name_prefix):
+def status(XCov_filename):
     ll_name = "xd_log_likelihood"
     with h5py.File(XCov_filename, mode='r') as f:
         if ll_name not in f['search']:
-            logger.info("0 done for '{}'".format(ll_name_prefix))
+            logger.info("0 done")
             return
 
         ll = f['search'][ll_name]
@@ -160,7 +160,7 @@ if __name__ == "__main__":
         logger.setLevel(logging.INFO)
 
     if args.status:
-        status(args.XCov_filename, args.prefix)
+        status(args.XCov_filename)
         sys.exit(0)
 
     if args.index is None:
