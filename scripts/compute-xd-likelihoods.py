@@ -14,6 +14,7 @@ from astropy import log as logger
 import numpy as np
 import filelock
 import h5py
+from scipy.misc import logsumexp
 
 def main(XCov_filename, xd_filename, chunk_index, n_per_chunk, overwrite=False):
 
@@ -80,7 +81,7 @@ def main(XCov_filename, xd_filename, chunk_index, n_per_chunk, overwrite=False):
         logger.debug("Computing likelihood for Chunk {} ({}:{})..."
                      .format(chunk_index,slc.start,slc.stop))
 
-        ll = clf.logprob_a(X, Cov)
+        ll = logsumexp(clf.logprob_a(X, Cov), axis=-1)
         logger.debug("...finished computing log-likelihoods")
 
     lock = filelock.FileLock(lock_filename)
