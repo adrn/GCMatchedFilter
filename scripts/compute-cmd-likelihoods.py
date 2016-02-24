@@ -66,6 +66,10 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
                         ll_dset = f['search'].create_dataset(ll_name, ll_shape, dtype='f')
                         ll_dset[:] = np.nan
                         ll = ll_dset[slc]
+
+                        f['search'][ll_name].attrs['smooth'] = smooth
+                        f['search'][ll_name].attrs['n_compare'] = n_compare
+
         except filelock.Timeout:
             logger.error("Timed out trying to acquire file lock to create dataset.")
             sys.exit(1)
