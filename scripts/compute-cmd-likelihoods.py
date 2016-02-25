@@ -10,24 +10,14 @@ import sys
 
 # Third-party
 from astropy import log as logger
-from astroML.utils import log_multivariate_gaussian
 import numpy as np
-from scipy.misc import logsumexp
 import filelock
 import h5py
 
-def worker(allX, allCov, otherX, otherCov, smooth=None):
-    V = allCov[:,np.newaxis,:,:] + otherCov
+# Project
+from globber.core import likelihood_worker
 
-    if smooth is not None:
-        H = np.zeros(allCov.shape[-2:]) + smooth**2
-        V += H[np.newaxis,np.newaxis]
-
-    ll = log_multivariate_gaussian(allX[:,np.newaxis,:], otherX, V)
-    ll = logsumexp(ll, axis=-1) # NOTE: could also max here
-    return ll
-
-def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=False,
+def main(XCov_filename, chunk_index, n_per_chunk, ll_name, overwrite=False,
          n_compare=None, smooth=None, dm=None):
 
     if not os.path.exists(XCov_filename):
@@ -35,21 +25,17 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
                       .format(XCov_filename))
     lock_filename = "{}.lock".format(os.path.splitext(XCov_filename)[0])
 
-    # name of the log-likelihood dataset
-    if ll_name_prefix == 'isochrone':
-        if dm is None:
-            raise ValueError("If isochrone, must specify distance modulus (--dm=...)")
-        ll_name = "isochrone_{:.2f}_log_likelihood".format(dm)
-
-    else:
-        ll_name = "{}_log_likelihood".format(ll_name_prefix.rstrip("_"))
-
     # define a slice object for this chunk to process
     slc = slice(chunk_index*n_per_chunk, (chunk_index+1)*n_per_chunk)
 
+    # name of the log-likelihood dataset
+    if ll_name == 'isochrone':
+        if dm is None:
+            raise ValueError("If isochrone, must specify distance modulus (--dm=...)")
+
     # only one process should modify the file to add the dataset if it doesn't exist
     with h5py.File(XCov_filename, mode='r') as f:
-        if ll_name not in f['search']:
+        if ll_name not in f['log_likelihood']:
             make_ll_dataset = True
         else:
             make_ll_dataset = False
@@ -63,19 +49,19 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
                     if ll_name not in f['search']:
                         # file has no _log_likelihood dataset -- make one!
                         ll_shape = (f['search']['X'].shape[0],)
-                        ll_dset = f['search'].create_dataset(ll_name, ll_shape, dtype='f')
+                        ll_dset = f['log_likelihood'].create_dataset(ll_name, ll_shape, dtype='f')
                         ll_dset[:] = np.nan
                         ll = ll_dset[slc]
 
-                        f['search'][ll_name].attrs['smooth'] = smooth
-                        f['search'][ll_name].attrs['n_compare'] = n_compare
+                        f['log_likelihood'][ll_name].attrs['smooth'] = smooth
+                        f['log_likelihood'][ll_name].attrs['n_compare'] = n_compare
 
         except filelock.Timeout:
             logger.error("Timed out trying to acquire file lock to create dataset.")
             sys.exit(1)
 
     with h5py.File(XCov_filename, mode='r') as f:
-        ll = f['search'][ll_name][slc]
+        ll = f['log_likelihood'][ll_name][slc]
 
         if np.isfinite(ll).all() and not overwrite:
             logger.debug("All log-likelihoods already computed for Chunk {} ({}:{})"
@@ -98,8 +84,9 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
             Cov = Cov[unfinished_idx]
 
         # n_compare
-        X_compare = f[ll_name_prefix]['X']
-        Cov_compare = f[ll_name_prefix]['Cov']
+        X_compare = f[ll_name]['X']
+        if 'Cov' not in f[ll_name]:
+            Cov_compare = None
 
         if n_compare is not None and n_compare < X_compare.shape[0]:
             # Note: can't use randint here because non-unique lists cause an OSError,
@@ -113,13 +100,15 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
                 iterations += 1
             idx = sorted(idx)
             X_compare = X_compare[idx]
-            Cov_compare = Cov_compare[idx]
+            if Cov_compare is not None:
+                Cov_compare = Cov_compare[idx]
 
         else:
             X_compare = X_compare[:]
-            Cov_compare = Cov_compare[:]
+            if Cov_compare is not None:
+                Cov_compare = Cov_compare[:]
 
-        if ll_name_prefix == 'isochrone':
+        if ll_name == 'isochrone':
             X_compare[:,0] += dm # add distance modulus
 
         logger.debug("{} total stars, {} comparison stars, {} chunk stars"
@@ -127,7 +116,7 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
 
         logger.debug("Computing likelihood for Chunk {} ({}:{})..."
                      .format(chunk_index,slc.start,slc.stop))
-        ll = worker(X, Cov, X_compare, Cov_compare, smooth=smooth)
+        ll = likelihood_worker(X, Cov, X_compare, Cov_compare, smooth=smooth)
         logger.debug("...finished computing log-likelihoods")
 
     lock = filelock.FileLock(lock_filename)
@@ -141,11 +130,10 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name_prefix, overwrite=Fals
         logger.error("Timed out trying to acquire file lock to write results.")
         sys.exit(1)
 
-def status(XCov_filename, ll_name_prefix):
-    ll_name = "{}_log_likelihood".format(ll_name_prefix.rstrip("_"))
+def status(XCov_filename, ll_name, dm=None):
     with h5py.File(XCov_filename, mode='r') as f:
-        if ll_name not in f['search']:
-            logger.info("0 done for '{}'".format(ll_name_prefix))
+        if ll_name not in f['log_likelihood']:
+            logger.info("0 done for '{}'".format(ll_name))
             return
 
         ll = f['search'][ll_name]
@@ -188,8 +176,8 @@ if __name__ == "__main__":
 
     parser.add_argument("-f", "--xcov-filename", dest="XCov_filename", required=True,
                         type=str, help="Full path to XCov file")
-    parser.add_argument("--prefix", dest="prefix", required=True,
-                        type=str, help="Prefix for log-likelihood calc. (cluster or noncluster)")
+    parser.add_argument("--name", dest="name", required=True,
+                        type=str, help="name for log-likelihood calc. (cluster, control, isochrone)")
     parser.add_argument("-n", "--nperchunk", dest="n_per_chunk", default=1000,
                         type=int, help="Number of stars per chunk.")
     parser.add_argument("-i", "--chunk-index", dest="index", default=None,
@@ -220,5 +208,5 @@ if __name__ == "__main__":
         raise ValueError("You must supply a chunk index to process! (-i or --chunk-index)")
 
     main(args.XCov_filename, chunk_index=args.index, n_per_chunk=args.n_per_chunk,
-         overwrite=args.overwrite, ll_name_prefix=args.prefix, n_compare=args.n_compare,
+         overwrite=args.overwrite, ll_name=args.name, n_compare=args.n_compare,
          smooth=args.smooth, dm=args.distance_modulus)
