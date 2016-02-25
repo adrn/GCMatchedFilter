@@ -49,14 +49,11 @@ def main(ps1_filename, ra_lims=None, dec_lims=None, out_filename=None, overwrite
     ps1 = np.load(ps1_filename)
     mask = np.ones(len(ps1)).astype(bool)
 
-    # define coordinates object for all stars
-    ps1_c = coord.ICRS(ra=ps1['ra']*u.degree, dec=ps1['dec']*u.degree)
-
     # sky limits
     if ra_lims is None:
         ra_lims = [ps1['ra'].min(), ps1['ra'].max()]
     if dec_lims is None:
-        dec_lims = [ps1['dec_lims'].min(), ps1['dec_lims'].max()]
+        dec_lims = [ps1['dec'].min(), ps1['dec'].max()]
     search_region = dict(ra=ra_lims, dec=dec_lims)
 
     # only finite (non-nan or inf) values (no constraint on y because dat shi cray)
@@ -73,9 +70,11 @@ def main(ps1_filename, ra_lims=None, dec_lims=None, out_filename=None, overwrite
 
     for (f1,f2),lim in color_lims.items():
         color_idx &= between(ps1['dered_{}'.format(f1)]-ps1['dered_{}'.format(f2)], lim)
-
     ps1 = ps1[color_idx]
     logger.debug("{} stars after color cuts".format(len(ps1)))
+
+    # define coordinates object for all stars (after sky and color cuts)
+    ps1_c = coord.ICRS(ra=ps1['ra']*u.degree, dec=ps1['dec']*u.degree)
 
     # cut out search region
     search_idx = sky_cut(ps1['ra'], ps1['dec'], lims=search_region)
@@ -148,6 +147,11 @@ if __name__ == "__main__":
                         type=str, help="Full path to output file HDF5 file. Default "
                                        " is to put in same path as input as XCov.h5")
 
+    parser.add_argument("--ra", dest="ra_lims", nargs=2,
+                        type=float, help="RA limits of search field")
+    parser.add_argument("--dec", dest="dec_lims", nargs=2,
+                        type=float, help="Dec limits of search field")
+
     args = parser.parse_args()
 
     # Set logger level based on verbose flags
@@ -158,6 +162,6 @@ if __name__ == "__main__":
     else:
         logger.setLevel(logging.INFO)
 
-    XCov_filename = main(ps1_filename=args.ps1_filename,
-                         out_filename=args.out_filename,
+    XCov_filename = main(ps1_filename=args.ps1_filename, out_filename=args.out_filename,
+                         ra_lims=args.ra_lims, dec_lims=args.dec_lims,
                          overwrite=args.overwrite)
