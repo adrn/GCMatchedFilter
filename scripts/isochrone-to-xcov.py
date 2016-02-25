@@ -9,55 +9,27 @@ from astropy import log as logger
 from astropy.io import ascii
 import numpy as np
 import h5py
-from scipy.interpolate import splprep, splev
 
-def iso_to_XCov(data, smooth=0.1, interpolate=False):
-    X = np.vstack([data['{}P1'.format(band)] for band in 'griz']).T
+# Project
+from globber.core import ps1_isoc_to_XCov
 
-    # HACK: this is fixed...colors should be customizable too, eh?
-    # mixing matrix W
-    W = np.array([[1, 0, 0, 0],    # g magnitude
-                  [0, 0, 1, 0],    # i magnitude
-                  [1, -1, 0, 0],   # g-r color
-                  [1, 0, -1, 0],   # g-i
-                  [1, 0, 0, -1]])  # g-z
-    # X = np.dot(X, W.T)
-    X = np.einsum('nj,mj->nm', X, W)
+# HACK: name should be customizable
+from globber.ngc5897 import mixing_matrix
 
-    if interpolate:
-        # interpolate
-        t = np.linspace(0, 1, X.shape[0])
-        tck, u = splprep(X.T, s=0, u=t)
-
-        tnew = np.linspace(0, 1, 4096)
-        Xinterp = np.array(splev(tnew, tck)).T
-        X = Xinterp
-
-    # compute error covariance with mixing matrix
-    Cov = np.zeros((X.shape[0], W.shape[1], W.shape[1]))
-    for i in range(W.shape[1]):
-        Cov[:,i,i] = smooth**2
-
-    # each covariance C = WCW^T
-    Cov = np.einsum('mj,njk->nmk', W, Cov)
-    Cov = np.einsum('lk,nmk->nml', W, Cov)
-
-    return X[:,1:], Cov[:,1:,1:]
-
-def main(iso_filename, XCov_filename, smooth, interpolate=False, overwrite=False):
+def main(iso_filename, XCov_filename, interpolate=True, overwrite=False):
 
     # FOR PARSEC ISOCHRONE
     # iso = ascii.read(iso_filename, header_start=13)
     # iso[114:] = iso[114:][::-1]
 
-    # FOR DARTMOTH ISOCHRONE
+    # FOR DARTMOUTH ISOCHRONE
     iso = ascii.read(iso_filename, header_start=8)
 
     # output hdf5 file
     with h5py.File(XCov_filename, mode='r+') as f:
 
-        # feature and covariance matrices for all stars
-        X,Cov = iso_to_XCov(iso, smooth=smooth, interpolate=interpolate)
+        # feature and covariance matrices for all stars (reversing it for interpolation)
+        X = ps1_isoc_to_XCov(iso[::-1], W=mixing_matrix, interpolate=interpolate)
 
         if 'isochrone' in f and overwrite:
             f.__delitem__('isochrone')
@@ -68,9 +40,8 @@ def main(iso_filename, XCov_filename, smooth, interpolate=False, overwrite=False
         else:
             g = f['isochrone']
 
-        if 'X' not in f['isochrone'] or 'Cov' not in f['isochrone']:
+        if 'X' not in f['isochrone']:
             g.create_dataset('X', X.shape, dtype='f', data=X)
-            g.create_dataset('Cov', Cov.shape, dtype='f', data=Cov)
 
         f.flush()
         logger.debug("Saved isochrone to {}".format(XCov_filename))
@@ -92,8 +63,6 @@ if __name__ == "__main__":
                         type=str, help="Path to isochrone file.")
     parser.add_argument("-x", "--xcov-file", dest="XCov_filename", required=True,
                         type=str, help="Path to XCov file.")
-    parser.add_argument("-s", "--smooth", dest="smooth", default=0.1,
-                        type=float, help="Bandwidth of KDE.")
 
     args = parser.parse_args()
 
@@ -107,4 +76,4 @@ if __name__ == "__main__":
 
     main(iso_filename=args.iso_filename,
          XCov_filename=args.XCov_filename,
-         smooth=args.smooth, overwrite=args.overwrite)
+         overwrite=args.overwrite)
