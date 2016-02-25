@@ -3,8 +3,10 @@ from __future__ import division, print_function
 __author__ = "adrn <adrn@astro.columbia.edu>"
 
 # Third-party
+from astroML.utils import log_multivariate_gaussian
 import numpy as np
 from scipy.interpolate import splprep, splev
+from scipy.misc import logsumexp
 
 def ps1_data_to_X_cov(data, W):
     """
@@ -42,3 +44,23 @@ def ps1_isoc_to_XCov(data, W, interpolate=False, n_interpolate=1024):
         X = np.vstack([u_fine] + splev(u_fine, tck)).T
 
     return X
+
+def likelihood_worker(allX, allCov, otherX, otherCov=None, smooth=None):
+    if otherCov is not None:
+        V = allCov[np.newaxis] + otherCov[:,np.newaxis]
+
+        if smooth is not None:
+            H = np.eye(allCov.shape[-1]) * smooth**2
+            V += H[np.newaxis,np.newaxis]
+
+        ll = log_multivariate_gaussian(allX[np.newaxis], otherX[:,np.newaxis], V)
+
+    else:
+        V = allCov
+        if smooth is not None:
+            H = np.eye(allCov.shape[-1]) * smooth**2
+            V += H[np.newaxis]
+        ll = log_multivariate_gaussian(allX[np.newaxis], otherX[:,np.newaxis], V[np.newaxis])
+
+    ll = logsumexp(ll, axis=-1) # NOTE: could also max here
+    return ll
