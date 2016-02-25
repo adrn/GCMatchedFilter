@@ -2,23 +2,8 @@ from __future__ import division, print_function
 
 __author__ = "adrn <adrn@astro.columbia.edu>"
 
-# Standard library
-import os
-import sys
-
 # Third-party
-import astropy.units as u
 import numpy as np
-
-# Project
-# ...
-
-def main():
-    pass
-
-if __name__ == "__main__":
-    main()
-
 
 def ps1_data_to_X_cov(data, W):
     """
