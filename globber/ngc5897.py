@@ -10,7 +10,7 @@ import numpy as np
 cluster_c = coord.SkyCoord(ra=229.352*u.degree,
                            dec=-21.01*u.degree)
 cluster_pad = {
-    'inner': 4*u.arcmin,
+    'inner': 6*u.arcmin,
     'outer': 15*u.arcmin
 }
 
