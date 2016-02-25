@@ -7,7 +7,6 @@ __author__ = "adrn <adrn@astro.columbia.edu>"
 # Third-party
 from astropy import log as logger
 from astropy.io import ascii
-import numpy as np
 import h5py
 
 # Project
