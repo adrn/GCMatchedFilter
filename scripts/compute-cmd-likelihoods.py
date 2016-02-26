@@ -18,7 +18,8 @@ import h5py
 from globber.core import likelihood_worker
 
 # HACK:
-from globber.ngc5897 import mixing_matrix as W
+# from globber.ngc5897 import mixing_matrix as W
+W = None
 
 def initialize_dataset(dset_name, group_path, XCov_filename, lock_filename):
     # only one process should modify the file to add the dataset if it doesn't exist
