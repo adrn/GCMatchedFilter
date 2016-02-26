@@ -43,7 +43,7 @@ def initialize_dataset(dset_name, group_path, XCov_filename, lock_filename):
             with lock.acquire(timeout=90):
                 logger.debug("File lock acquired: creating dataset for log-likelihoods")
                 with h5py.File(XCov_filename, mode='r+') as f:
-                    if make_group:
+                    if make_group and group_path not in f:
                         group = f.create_group(group_path)
                     else:
                         group = f[group_path]
