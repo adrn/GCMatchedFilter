@@ -104,6 +104,8 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name, overwrite=False,
         X_compare = f[ll_name]['X']
         if 'Cov' not in f[ll_name]:
             Cov_compare = None
+        else:
+            Cov_compare = f[ll_name]['Cov']
 
         if n_compare is not None and n_compare < X_compare.shape[0]:
             # Note: can't use randint here because non-unique lists cause an OSError,
