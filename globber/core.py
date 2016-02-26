@@ -62,5 +62,5 @@ def likelihood_worker(allX, allCov, otherX, otherCov=None, smooth=None):
             V += H[np.newaxis]
         ll = log_multivariate_gaussian(allX[np.newaxis], otherX[:,np.newaxis], V[np.newaxis])
 
-    ll = logsumexp(ll, axis=-1) # NOTE: could also max here
+    ll = logsumexp(ll, axis=0) # NOTE: could also max here
     return ll
