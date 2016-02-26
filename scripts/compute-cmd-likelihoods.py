@@ -17,6 +17,9 @@ import h5py
 # Project
 from globber.core import likelihood_worker
 
+# HACK:
+from globber.ngc5897 import mixing_matrix as W
+
 def initialize_dataset(dset_name, group_path, XCov_filename, lock_filename):
     # only one process should modify the file to add the dataset if it doesn't exist
     with h5py.File(XCov_filename, mode='r') as f:
@@ -135,7 +138,7 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name, overwrite=False,
 
         logger.debug("Computing likelihood for Chunk {} ({}:{})..."
                      .format(chunk_index,slc.start,slc.stop))
-        ll = likelihood_worker(X, Cov, X_compare, Cov_compare, smooth=smooth)
+        ll = likelihood_worker(X, Cov, X_compare, Cov_compare, smooth=smooth, W=W)
         logger.debug("...finished computing log-likelihoods (nan/inf: {})"
                      .format(np.logical_not(np.isfinite(ll)).sum()))
 

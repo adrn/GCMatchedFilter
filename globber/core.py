@@ -45,12 +45,15 @@ def ps1_isoc_to_XCov(data, W, interpolate=False, n_interpolate=1024):
 
     return X
 
-def likelihood_worker(allX, allCov, otherX, otherCov=None, smooth=None):
+def likelihood_worker(allX, allCov, otherX, otherCov=None, smooth=None, W=None):
     if otherCov is not None:
         V = allCov[np.newaxis] + otherCov[:,np.newaxis]
 
         if smooth is not None:
             H = np.eye(allCov.shape[-1]) * smooth**2
+            if W is not None:
+                H = np.einsum('mj,jk->mk', W, H)
+                H = np.einsum('lk,mk->ml', W, H)
             V += H[np.newaxis,np.newaxis]
 
         ll = log_multivariate_gaussian(allX[np.newaxis], otherX[:,np.newaxis], V)
@@ -59,6 +62,9 @@ def likelihood_worker(allX, allCov, otherX, otherCov=None, smooth=None):
         V = allCov
         if smooth is not None:
             H = np.eye(allCov.shape[-1]) * smooth**2
+            if W is not None:
+                H = np.einsum('mj,jk->mk', W, H)
+                H = np.einsum('lk,mk->ml', W, H)
             V += H[np.newaxis]
         ll = log_multivariate_gaussian(allX[np.newaxis], otherX[:,np.newaxis], V[np.newaxis])
 

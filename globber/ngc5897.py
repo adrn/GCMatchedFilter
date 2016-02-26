@@ -35,3 +35,6 @@ color_lims = {
 # core and tidal radius in angular units
 r_c = (7.24*u.pc / (12.5*u.kpc)).to(u.arcmin, equivalencies=u.dimensionless_angles())
 r_t = (44*u.pc / (12.5*u.kpc)).to(u.arcmin, equivalencies=u.dimensionless_angles())
+
+# distance modulus
+fiducial_DM = 15.6
