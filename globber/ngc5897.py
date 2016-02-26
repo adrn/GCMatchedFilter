@@ -17,9 +17,9 @@ cluster_pad = {
 # what photometry do we want to use? g,r,i,z,y
 mixing_matrix = np.array([[0, 0, 1, 0, 0],    # i magnitude
                           [1, -1, 0, 0, 0],   # g-r color
-                          [1, 0, -1, 0, 0],   # g-i
-                          [1, 0, 0, -1, 0],   # g-z
-                          [0, 1, 0, -1, 0]])  # r-z
+                          [1, 0, -1, 0, 0]])   # g-i
+                          # [1, 0, 0, -1, 0]])   # g-z
+                          # [0, 1, 0, -1, 0]])  # r-z
 
 magnitude_lims = {
     'i': (17,21)
@@ -28,8 +28,8 @@ magnitude_lims = {
 color_lims = {
     ('g','r'): (-0.1,0.7),
     ('g','i'): (-0.1,1.),
-    ('g','z'): (-0.1,1.1),
-    ('r','z'): (-0.2,0.5),
+    # ('g','z'): (-0.1,1.1),
+    # ('r','z'): (-0.2,0.5),
 }
 
 # core and tidal radius in angular units
