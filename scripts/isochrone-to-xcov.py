@@ -8,6 +8,7 @@ __author__ = "adrn <adrn@astro.columbia.edu>"
 from astropy import log as logger
 from astropy.io import ascii
 import h5py
+import numpy.lib.recfunctions as nprf
 
 # Project
 from globber.core import ps1_isoc_to_XCov
@@ -17,18 +18,18 @@ from globber.ngc5897 import mixing_matrix
 
 def main(iso_filename, XCov_filename, interpolate=True, overwrite=False):
 
-    # FOR PARSEC ISOCHRONE
-    # iso = ascii.read(iso_filename, header_start=13)
-    # iso[114:] = iso[114:][::-1]
+    # FOR PARSEC ISOCHRONE (reversing it for interpolation)
+    iso = ascii.read(iso_filename, header_start=13)[:114][::-1]
+    iso = nprf.stack_arrays((iso[:25], iso[27:]),usemask=False) # because of stupid red clump turnaround
 
-    # FOR DARTMOUTH ISOCHRONE
-    iso = ascii.read(iso_filename, header_start=8)
+    # FOR DARTMOUTH ISOCHRONE (reversing it for interpolation)
+    # iso = ascii.read(iso_filename, header_start=8)[::-1]
 
     # output hdf5 file
     with h5py.File(XCov_filename, mode='r+') as f:
 
-        # feature and covariance matrices for all stars (reversing it for interpolation)
-        X = ps1_isoc_to_XCov(iso[::-1], W=mixing_matrix, interpolate=interpolate)
+        # feature and covariance matrices for all stars
+        X = ps1_isoc_to_XCov(iso, W=mixing_matrix, interpolate=interpolate)
 
         if 'isochrone' in f and overwrite:
             f.__delitem__('isochrone')
