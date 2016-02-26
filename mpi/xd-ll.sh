@@ -1,12 +1,11 @@
 #!/bin/sh
 
 # Directives
-#PBS -N globber-cluster
+#PBS -N globber-xd
 #PBS -W group_list=yetiastro
-#PBS -l nodes=1:ppn=1,walltime=00:50:00,mem=8gb
+#PBS -l nodes=1:ppn=1,walltime=00:15:00,mem=6gb
 #PBS -V
-#PBS -t 0-1015
-# 1015
+#PBS -t 0-1143
 #PBS -m n
 
 # Set output and error directories
@@ -23,7 +22,7 @@ cd /vega/astro/users/amp2217/projects/globber/
 source activate globber
 
 # New run
-python scripts/compute-cmd-likelihoods.py -f data/ngc5897/XCov.h5 -n 1000 -i $PBS_ARRAYID --name=cluster -v -o --smooth=0.08
+python scripts/compute-xd-likelihoods.py -f data/ngc5897/XCov_lg.h5 -x data/ngc5897/xd_trained.pickle -n 2000 -i $PBS_ARRAYID 
 
 date
 
