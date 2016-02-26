@@ -17,6 +17,42 @@ import h5py
 # Project
 from globber.core import likelihood_worker
 
+def initialize_dataset(dset_name, group_path, XCov_filename, lock_filename):
+    # only one process should modify the file to add the dataset if it doesn't exist
+    with h5py.File(XCov_filename, mode='r') as f:
+        make_group = False
+        make_dataset = True
+
+        try:
+            group = f[group_path]
+            logger.debug("Group already exists")
+        except KeyError:
+            make_group = True
+            logger.debug("Group doesn't exist...")
+
+        if not make_group and dset_name in group:
+            make_dataset = False
+
+    if make_group or make_dataset:
+        lock = filelock.FileLock(lock_filename)
+        try:
+            with lock.acquire(timeout=90):
+                logger.debug("File lock acquired: creating dataset for log-likelihoods")
+                with h5py.File(XCov_filename, mode='r+') as f:
+                    if make_group:
+                        group = f.create_group(group_path)
+                    else:
+                        group = f[group_path]
+
+                    if dset_name not in group: # double checking!
+                        ll_shape = (f['search']['X'].shape[0],)
+                        ll_dset = group.create_dataset(dset_name, ll_shape, dtype='f')
+                        ll_dset[:] = np.nan
+
+        except filelock.Timeout:
+            logger.error("Timed out trying to acquire file lock to create dataset.")
+            sys.exit(1)
+
 def main(XCov_filename, chunk_index, n_per_chunk, ll_name, overwrite=False,
          n_compare=None, smooth=None, dm=None):
 
@@ -33,35 +69,17 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name, overwrite=False,
         if dm is None:
             raise ValueError("If isochrone, must specify distance modulus (--dm=...)")
 
-    # only one process should modify the file to add the dataset if it doesn't exist
-    with h5py.File(XCov_filename, mode='r') as f:
-        if ll_name not in f['log_likelihood']:
-            make_ll_dataset = True
-        else:
-            make_ll_dataset = False
+        dset_name = "{:.2f}".format(dm)
+        group_path = 'log_likelihood/isochrone'
+    else:
+        dset_name = ll_name
+        group_path = 'log_likelihood'
 
-    if make_ll_dataset:
-        lock = filelock.FileLock(lock_filename)
-        try:
-            with lock.acquire(timeout=90):
-                logger.debug("File lock acquired: creating dataset for log-likelihoods")
-                with h5py.File(XCov_filename, mode='r+') as f:
-                    if ll_name not in f['search']:
-                        # file has no _log_likelihood dataset -- make one!
-                        ll_shape = (f['search']['X'].shape[0],)
-                        ll_dset = f['log_likelihood'].create_dataset(ll_name, ll_shape, dtype='f')
-                        ll_dset[:] = np.nan
-                        ll = ll_dset[slc]
-
-                        f['log_likelihood'][ll_name].attrs['smooth'] = smooth
-                        f['log_likelihood'][ll_name].attrs['n_compare'] = n_compare
-
-        except filelock.Timeout:
-            logger.error("Timed out trying to acquire file lock to create dataset.")
-            sys.exit(1)
+    dset_path = os.path.join(group_path, dset_name)
+    initialize_dataset(dset_name, group_path, XCov_filename, lock_filename)
 
     with h5py.File(XCov_filename, mode='r') as f:
-        ll = f['log_likelihood'][ll_name][slc]
+        ll = f[dset_path][slc]
 
         if np.isfinite(ll).all() and not overwrite:
             logger.debug("All log-likelihoods already computed for Chunk {} ({}:{})"
@@ -83,7 +101,6 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name, overwrite=False,
             X = X[unfinished_idx]
             Cov = Cov[unfinished_idx]
 
-        # n_compare
         X_compare = f[ll_name]['X']
         if 'Cov' not in f[ll_name]:
             Cov_compare = None
@@ -117,26 +134,38 @@ def main(XCov_filename, chunk_index, n_per_chunk, ll_name, overwrite=False,
         logger.debug("Computing likelihood for Chunk {} ({}:{})..."
                      .format(chunk_index,slc.start,slc.stop))
         ll = likelihood_worker(X, Cov, X_compare, Cov_compare, smooth=smooth)
-        logger.debug("...finished computing log-likelihoods")
+        logger.debug("...finished computing log-likelihoods (nan/inf: {})"
+                     .format(np.logical_not(np.isfinite(ll)).sum()))
 
     lock = filelock.FileLock(lock_filename)
     try:
         with lock.acquire(timeout=300):
             logger.debug("File lock acquired - writing to results")
             with h5py.File(XCov_filename, mode='r+') as f:
-                f['search'][ll_name][slc] = ll
+                f[dset_path][slc] = ll
 
     except filelock.Timeout:
         logger.error("Timed out trying to acquire file lock to write results.")
         sys.exit(1)
 
 def status(XCov_filename, ll_name, dm=None):
+    if ll_name == 'isochrone':
+        if dm is None:
+            raise ValueError("If isochrone, must specify distance modulus (--dm=...)")
+
+        dset_name = "{:.2f}".format(dm)
+        group_path = 'log_likelihood/isochrone'
+    else:
+        dset_name = ll_name
+        group_path = 'log_likelihood'
+    dset_path = os.path.join(group_path, dset_name)
+
     with h5py.File(XCov_filename, mode='r') as f:
-        if ll_name not in f['log_likelihood']:
+        if dset_path not in f:
             logger.info("0 done for '{}'".format(ll_name))
             return
 
-        ll = f['search'][ll_name]
+        ll = f[dset_path]
         ndone = np.isfinite(ll).sum()
         nnot = np.isnan(ll).sum()
         logger.info("{} done, {} not done".format(ndone, nnot))
@@ -201,7 +230,7 @@ if __name__ == "__main__":
         logger.setLevel(logging.INFO)
 
     if args.status:
-        status(args.XCov_filename, args.prefix)
+        status(args.XCov_filename, args.name, dm=args.distance_modulus)
         sys.exit(0)
 
     if args.index is None:
