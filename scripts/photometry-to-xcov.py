@@ -57,10 +57,14 @@ def main(ps1_filename, ra_lims=None, dec_lims=None, out_filename=None, overwrite
     search_region = dict(ra=ra_lims, dec=dec_lims)
 
     # only finite (non-nan or inf) values (no constraint on y because dat shi cray)
-    mask &= np.isfinite(ps1['dered_g'])
-    mask &= np.isfinite(ps1['dered_r'])
-    mask &= np.isfinite(ps1['dered_i'])
-    mask &= np.isfinite(ps1['dered_z'])
+    for i,c in enumerate('grizy'):
+        if mixing_matrix[:,i].any():
+            logger.debug("Requiring finite photometry for: {}".format(c))
+            mask &= np.isfinite(ps1['dered_{}'.format(c)])
+            mask &= np.isfinite(ps1['{}Err'.format(c)])
+        else:
+            ps1['dered_{}'.format(c)] = 0.
+            ps1['{}Err'.format(c)] = 0.
     ps1 = ps1[mask]
 
     # cut out color region
@@ -87,7 +91,8 @@ def main(ps1_filename, ra_lims=None, dec_lims=None, out_filename=None, overwrite
     logger.debug("{} stars in cluster".format(len(cluster)))
 
     # control fields
-    control_idx = ps1_c.separation(cluster_c) > cluster_pad['outer']
+    control_idx = ((ps1_c.separation(cluster_c) > cluster_pad['outer']) &
+                   search_idx)
     control_ps1 = ps1[control_idx]
     logger.debug("{} stars in control fields".format(len(control_ps1)))
 
