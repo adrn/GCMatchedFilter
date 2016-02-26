@@ -31,3 +31,7 @@ color_lims = {
     ('g','z'): (-0.1,1.1),
     ('r','z'): (-0.2,0.5),
 }
+
+# core and tidal radius in angular units
+r_c = (7.24*u.pc / (12.5*u.kpc)).to(u.arcmin, equivalencies=u.dimensionless_angles())
+r_t = (44*u.pc / (12.5*u.kpc)).to(u.arcmin, equivalencies=u.dimensionless_angles())
