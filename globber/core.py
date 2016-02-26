@@ -17,7 +17,7 @@ def ps1_data_to_X_cov(data, W):
     X = np.vstack([data['dered_{}'.format(band)] for band in 'grizy']).T
     Xerr = np.vstack([data['{}Err'.format(band)] for band in 'grizy']).T
 
-    X = np.einsum('nj,mj->nm', X, W)
+    X = np.einsum('ij,kj->ik', X, W)
 
     # compute error covariance with mixing matrix
     V = np.zeros(Xerr.shape + Xerr.shape[-1:])
